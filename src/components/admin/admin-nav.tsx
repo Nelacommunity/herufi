@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, BadgePercent, FolderTree, LayoutDashboard, Menu, Package, ShoppingCart, Users } from "lucide-react";
+import { ArrowUpRight, BadgePercent, FolderTree, LayoutDashboard, Menu, Package, Ship, ShoppingCart, Users } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { Logo } from "@/components/layout/logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -16,6 +16,7 @@ const LINKS = [
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/discounts", label: "Discounts", icon: BadgePercent },
+  { href: "/admin/shipping", label: "Shipping", icon: Ship },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

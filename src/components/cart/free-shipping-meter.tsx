@@ -1,19 +1,18 @@
 "use client";
 
-import { Plane } from "lucide-react";
-import { FREE_SHIPPING_THRESHOLD } from "@/lib/constants";
+import { Anchor } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { useI18n } from "@/i18n/client";
 
-export function FreeShippingMeter({ subtotal }: { subtotal: number }) {
+export function FreeShippingMeter({ subtotal, threshold }: { subtotal: number; threshold: number }) {
   const { t } = useI18n();
-  const remaining = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
-  const pct = Math.min(100, (subtotal / FREE_SHIPPING_THRESHOLD) * 100);
+  const remaining = Math.max(0, threshold - subtotal);
+  const pct = Math.min(100, (subtotal / threshold) * 100);
   const [before, after] = t.cart.awayFromFree.split("{amount}");
   return (
     <div className="rounded-2xl bg-surface-2 p-4">
       <p className="flex items-center gap-2 text-sm">
-        <Plane className="h-4 w-4 shrink-0" />
+        <Anchor className="h-4 w-4 shrink-0" />
         {remaining > 0 ? (
           <span>{before}<strong className="font-semibold">{formatPrice(remaining)}</strong>{after}</span>
         ) : (

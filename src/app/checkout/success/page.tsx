@@ -57,6 +57,7 @@ export default async function SuccessPage({ searchParams }: PageProps<"/checkout
             <div className="flex justify-between"><dt className="text-muted">{t.summary.shipping}</dt><dd>{Number(order.shipping) === 0 ? t.common.free : formatPrice(order.shipping)}</dd></div>
             <div className="flex justify-between"><dt className="text-muted">{t.summary.tax}</dt><dd>{formatPrice(order.tax)}</dd></div>
             <div className="flex justify-between pt-2 text-base font-semibold"><dt>{t.summary.total}</dt><dd>{formatPrice(order.total)}</dd></div>
+            {Number(order.shipping_saved ?? 0) > 0 && <p className="rounded-xl bg-success/10 px-3 py-2 text-center font-medium text-success">{fmt(t.shipping.youSaved, { amount: formatPrice(order.shipping_saved) })}</p>}
           </dl>
         </div>
       )}

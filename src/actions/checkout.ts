@@ -82,6 +82,7 @@ function translateOrderError(message: string, t: Awaited<ReturnType<typeof getI1
     if (code.startsWith("min:")) return fmt(t.summary.coupon.min, { amount: formatPrice(Number(code.slice(4))) });
     return t.summary.coupon[code as keyof typeof t.summary.coupon] ?? t.summary.coupon.invalid;
   }
+  if (message.includes("DELIVERY_UNAVAILABLE")) return e.deliveryUnavailable;
   if (message.includes("EMPTY_BAG")) return e.emptyBag;
   if (message.includes("INVALID_EMAIL")) return e.email;
   if (message.includes("INVALID_ADDRESS")) return e.address;

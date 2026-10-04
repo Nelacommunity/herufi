@@ -11,15 +11,19 @@ export const HELP_TOPICS: HelpTopic[] = [
       title: "Shipping from China", summary: "How your order travels from the factory to your door in Tanzania.",
       sections: [
         { heading: "Delivery options", body: [
-          "Air cargo: 10–14 days. Free on orders over TSh 250,000, otherwise TSh 15,000.",
-          "Express air: 5–7 days, TSh 45,000. Best when you need it fast.",
-          "Sea freight: 30–45 days, TSh 8,000. The cheapest way to ship bulky items like furniture.",
+          "Sea freight: 35–45 days. FREE on every order: we calculate the usual price (TSh 1,000,000 per cubic metre) and take it off automatically at checkout, so you can see exactly how much you save.",
+          "Air cargo: 10–14 days, TSh 28,000 per kg (minimum TSh 14,000).",
+          "Express air: 5–7 days, TSh 55,000 per kg (minimum TSh 55,000). Best when you need it fast.",
+        ] },
+        { heading: "How the price is calculated", body: [
+          "Air prices use the chargeable weight: the actual weight or the volumetric weight (length × width × height in cm ÷ 6,000), whichever is higher, rounded up to the next 0.5 kg. Sea prices use the packed volume of your order.",
+          "Not every item can travel every way: large furniture ships by sea only, and liquids can't go by express courier. The product page shows the price and availability of each method for the quantity you choose, and checkout only offers methods that suit everything in your bag.",
         ] },
         { heading: "How it works", body: [
           "We buy from the factory, inspect your items at our warehouse in Guangzhou, then consolidate and ship them to Dar es Salaam. Our team clears customs and hands your parcel to a local courier for door delivery.",
         ] },
         { heading: "Where we deliver", body: [
-          "Door delivery to Dar es Salaam, Arusha, Mwanza, Dodoma, Mbeya, Morogoro, Tanga, Moshi and Zanzibar. Other towns are served through our partner pickup points; the courier will call you to arrange collection.",
+          "Door delivery to Dar es Salaam, Arusha, Mwanza and Dodoma. Other towns are served through our partner pickup points; the courier will call you to arrange collection.",
         ] },
         { heading: "Tracking", body: ["You'll get an SMS and email at every stage: shipped from China, arrived in Tanzania, cleared customs and out for delivery. You can also follow it under Orders in your account."] },
       ],
@@ -28,15 +32,19 @@ export const HELP_TOPICS: HelpTopic[] = [
       title: "Usafirishaji kutoka China", summary: "Jinsi oda yako inavyosafiri kutoka kiwandani hadi mlangoni kwako Tanzania.",
       sections: [
         { heading: "Njia za usafirishaji", body: [
-          "Ndege (cargo): siku 10–14. Bure kwa oda zaidi ya TSh 250,000, vinginevyo TSh 15,000.",
-          "Ndege ya haraka: siku 5–7, TSh 45,000. Inafaa unapohitaji haraka.",
-          "Meli: siku 30–45, TSh 8,000. Njia nafuu zaidi kwa mizigo mikubwa kama samani.",
+          "Meli: siku 35–45. BURE kwa kila oda: tunahesabu bei ya kawaida (TSh 1,000,000 kwa mita moja ya ujazo) na kuiondoa wenyewe wakati wa malipo, ili uone hasa kiasi unachookoa.",
+          "Ndege (cargo): siku 10–14, TSh 28,000 kwa kilo (kiwango cha chini TSh 14,000).",
+          "Ndege ya haraka: siku 5–7, TSh 55,000 kwa kilo (kiwango cha chini TSh 55,000). Inafaa unapohitaji haraka.",
+        ] },
+        { heading: "Bei inavyohesabiwa", body: [
+          "Bei ya ndege inatumia uzito unaotozwa: uzito halisi au uzito wa ujazo (urefu × upana × kimo kwa sentimita ÷ 6,000), upi mkubwa zaidi, ukizungushwa juu hadi kg 0.5 inayofuata. Bei ya meli inatumia ujazo wa mzigo wako.",
+          "Si kila bidhaa inaweza kusafiri kwa kila njia: samani kubwa husafirishwa kwa meli tu, na vimiminika haviwezi kwenda kwa ndege ya haraka. Ukurasa wa bidhaa unaonyesha bei na upatikanaji wa kila njia kwa idadi unayochagua, na wakati wa malipo tunaonyesha njia zinazofaa kwa kila kitu kikapuni.",
         ] },
         { heading: "Inavyofanya kazi", body: [
           "Tunanunua kutoka kiwandani, tunakagua bidhaa zako kwenye ghala letu la Guangzhou, kisha tunaziunganisha na kuzisafirisha hadi Dar es Salaam. Timu yetu inatoa mzigo forodhani na kumkabidhi msafirishaji wa ndani akuletee mlangoni.",
         ] },
         { heading: "Tunafikisha wapi", body: [
-          "Tunafikisha mlangoni Dar es Salaam, Arusha, Mwanza, Dodoma, Mbeya, Morogoro, Tanga, Moshi na Zanzibar. Miji mingine inahudumiwa kupitia vituo vya washirika wetu; msafirishaji atakupigia kupanga uchukuaji.",
+          "Tunafikisha mlangoni Dar es Salaam, Arusha, Mwanza and Dodoma. Miji mingine inahudumiwa kupitia vituo vya washirika wetu; msafirishaji atakupigia kupanga uchukuaji.",
         ] },
         { heading: "Ufuatiliaji", body: ["Utapokea SMS na barua pepe kila hatua: imesafirishwa kutoka China, imefika Tanzania, imetoka forodhani na iko njiani kwako. Unaweza pia kuifuatilia kwenye Oda ndani ya akaunti yako."] },
       ],

@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { createPublicClient } from "@/lib/supabase/public";
 import { PAGE_SIZE, type SortValue } from "@/lib/constants";
-import type { Category, Product, ProductQuestion, ProductSummary, Review } from "@/lib/types";
+import type { Category, Product, ProductQuestion, ProductSummary, Review, ShippingRate } from "@/lib/types";
 import { PRODUCT_SELECT, SUMMARY_SELECT, toProduct, toSummary } from "@/lib/queries/shared";
 
 export const getCategories = cache(async (): Promise<Category[]> => {
@@ -116,7 +116,11 @@ export async function getSection(section: Section, limit = 8): Promise<ProductSu
 
 export const getProductBySlug = cache(async (slug: string): Promise<Product | null> => {
   const db = createPublicClient(300);
-  const { data, error } = await db.from("products").select(PRODUCT_SELECT).eq("slug", slug).eq("is_active", true).maybeSingle();
+  let { data, error } = await db.from("products").select(PRODUCT_SELECT).eq("slug", slug).eq("is_active", true).maybeSingle();
+  // 42703 = undefined column: database hasn't had 0006_shipping.sql yet; fall back to defaults.
+  if (error?.code === "42703") {
+    ({ data, error } = await db.from("products").select(PRODUCT_SELECT.replace(/, weight_kg.*$/, "")).eq("slug", slug).eq("is_active", true).maybeSingle());
+  }
   if (error) throw error;
   return data ? toProduct(data) : null;
 });
@@ -169,3 +173,25 @@ export async function getQuestions(productId: string): Promise<ProductQuestion[]
   if (error) throw error;
   return data ?? [];
 }
+
+export const getShippingRates = cache(async (): Promise<ShippingRate[]> => {
+  const db = createPublicClient(600);
+  const { data, error } = await db.from("shipping_rates").select("*").eq("is_active", true).order("sort_order");
+  if (error) return []; // table missing before migration 0006: callers fall back gracefully
+  return (data ?? []).map((r) => ({
+    ...r,
+    rate_per_kg: r.rate_per_kg == null ? null : Number(r.rate_per_kg),
+    rate_per_cbm: r.rate_per_cbm == null ? null : Number(r.rate_per_cbm),
+    volumetric_kg_per_cbm: Number(r.volumetric_kg_per_cbm),
+    min_charge: Number(r.min_charge),
+    free_over: r.free_over == null ? null : Number(r.free_over),
+    free_max_kg: r.free_max_kg == null ? null : Number(r.free_max_kg),
+    free_max_cbm: r.free_max_cbm == null ? null : Number(r.free_max_cbm),
+  }));
+});
+
+/** The free sea-shipping promotion, if one is active (free_over = 0 means every order). */
+export const getFreeShippingPromo = cache(async () => {
+  const sea = (await getShippingRates()).find((r) => r.method === "sea");
+  return sea && sea.free_over != null ? { freeOver: sea.free_over, maxCbm: sea.free_max_cbm } : null;
+});

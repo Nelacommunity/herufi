@@ -6,7 +6,7 @@ export const SUMMARY_SELECT =
   "category:categories(id, name, slug), images:product_images(id, image_url, alt_text, sort_order), " +
   "variants:product_variants(id, name, value, additional_price, stock_quantity, sort_order)";
 
-export const PRODUCT_SELECT = `${SUMMARY_SELECT}, description, details, specifications, sku, sales_count, is_active, updated_at`;
+export const PRODUCT_SELECT = `${SUMMARY_SELECT}, description, details, specifications, sku, sales_count, is_active, updated_at, weight_kg, length_cm, width_cm, height_cm, volume_cbm, shipping_methods`;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /** Products added within this many days get a "New" badge. */
@@ -45,6 +45,12 @@ export function toProduct(row: any): Product {
     sku: row.sku ?? null,
     sales_count: Number(row.sales_count ?? 0),
     is_active: row.is_active !== false,
+    weight_kg: Number(row.weight_kg ?? 0.5),
+    length_cm: Number(row.length_cm ?? 20),
+    width_cm: Number(row.width_cm ?? 15),
+    height_cm: Number(row.height_cm ?? 10),
+    volume_cbm: Number(row.volume_cbm ?? 0),
+    shipping_methods: row.shipping_methods ?? ["standard", "express", "sea"],
     updated_at: row.updated_at,
   };
 }

@@ -55,6 +55,49 @@ export interface Product extends ProductSummary {
   sales_count: number;
   is_active: boolean;
   updated_at: string;
+  weight_kg: number;
+  length_cm: number;
+  width_cm: number;
+  height_cm: number;
+  volume_cbm: number;
+  shipping_methods: DeliveryMethod[];
+}
+
+/** One priced option from the shipping_options / quote_order database functions. */
+export interface ShippingOption {
+  method: DeliveryMethod;
+  available: boolean;
+  blocked_by: string[];
+  /** Full calculated price before any free-shipping promotion. */
+  list_price: number;
+  free: boolean;
+  price: number;
+  chargeable: number;
+  unit: "kg" | "cbm";
+  rate: number;
+  min_charge: number;
+  free_over: number | null;
+  free_max_kg: number | null;
+  free_max_cbm: number | null;
+  eta_min: number;
+  eta_max: number;
+  weight_kg: number;
+  volume_cbm: number;
+}
+
+export interface ShippingRate {
+  method: DeliveryMethod;
+  rate_per_kg: number | null;
+  rate_per_cbm: number | null;
+  volumetric_kg_per_cbm: number;
+  min_charge: number;
+  free_over: number | null;
+  free_max_kg: number | null;
+  free_max_cbm: number | null;
+  eta_min_days: number;
+  eta_max_days: number;
+  is_active: boolean;
+  sort_order: number;
 }
 
 export interface Review {
@@ -123,6 +166,7 @@ export interface Order {
   total: number;
   coupon_code: string | null;
   delivery_method: DeliveryMethod;
+  shipping_saved?: number;
   shipping_address: Omit<Address, "id" | "label" | "is_default">;
   payment_method: { brand?: string; last4?: string };
   payment_status: string;
@@ -180,7 +224,12 @@ export interface Quote {
   discount: number;
   coupon_code: string | null;
   coupon_message: string | null;
+  delivery_method: DeliveryMethod;
   shipping: number;
+  /** Shipping before promotions, when known (equals `shipping` unless free shipping applied). */
+  shipping_list?: number;
+  shipping_available: boolean;
+  shipping_options: ShippingOption[];
   tax: number;
   total: number;
 }

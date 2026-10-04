@@ -46,7 +46,7 @@ export default async function AdminOrderDetail({ params }: PageProps<"/admin/ord
             <dl className="space-y-2 border-t border-border p-5 text-sm">
               <div className="flex justify-between"><dt className="text-muted">Subtotal</dt><dd className="tabular-nums">{formatPrice(order.subtotal)}</dd></div>
               {Number(order.discount) > 0 && <div className="flex justify-between"><dt className="text-muted">Discount ({order.coupon_code})</dt><dd className="tabular-nums text-success">−{formatPrice(order.discount)}</dd></div>}
-              <div className="flex justify-between"><dt className="text-muted">Shipping</dt><dd className="tabular-nums">{formatPrice(order.shipping)}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted">Shipping</dt><dd className="tabular-nums">{formatPrice(order.shipping)}{Number(order.shipping_saved ?? 0) > 0 && <span className="ml-2 text-xs text-success">(free, worth {formatPrice(order.shipping_saved)})</span>}</dd></div>
               <div className="flex justify-between"><dt className="text-muted">Tax</dt><dd className="tabular-nums">{formatPrice(order.tax)}</dd></div>
               <div className="flex justify-between border-t border-border pt-3 text-base font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatPrice(order.total)}</dd></div>
             </dl>

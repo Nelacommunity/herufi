@@ -1,10 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CartLine, DeliveryMethod, Quote } from "@/lib/types";
+import { normalizeOptions } from "@/lib/shipping";
 
 const COUPON_KEY = "herufi:coupon";
+const DELIVERY_KEY = "herufi:delivery";
+const listeners = new Set<() => void>();
+
+/** The shopper's preferred shipping method, shared by the product page, cart and checkout. */
+export function useDeliveryPreference(): [DeliveryMethod, (m: DeliveryMethod) => void] {
+  const value = useSyncExternalStore(
+    (cb) => { listeners.add(cb); window.addEventListener("storage", cb); return () => { listeners.delete(cb); window.removeEventListener("storage", cb); }; },
+    () => { try { return (localStorage.getItem(DELIVERY_KEY) as DeliveryMethod | null) ?? "sea"; } catch { return "sea"; } },
+    () => "sea" as DeliveryMethod,
+  );
+  const set = useCallback((m: DeliveryMethod) => {
+    try { localStorage.setItem(DELIVERY_KEY, m); } catch {}
+    listeners.forEach((l) => l());
+  }, []);
+  return [["standard", "express", "sea"].includes(value) ? value : "sea", set];
+}
 
 export function readCoupon() {
   try { return sessionStorage.getItem(COUPON_KEY) ?? ""; } catch { return ""; }
@@ -28,7 +45,12 @@ export function useQuote(lines: CartLine[], delivery: DeliveryMethod, coupon: st
       if (error) setResult((r) => ({ key, quote: r?.quote ?? null, error: "We couldn't update your totals. Please refresh." }));
       else {
         const q = data as Quote;
-        setResult({ key, error: null, quote: { ...q, subtotal: Number(q.subtotal), discount: Number(q.discount), shipping: Number(q.shipping), tax: Number(q.tax), total: Number(q.total) } });
+        setResult({ key, error: null, quote: {
+          ...q,
+          subtotal: Number(q.subtotal), discount: Number(q.discount), shipping: Number(q.shipping), tax: Number(q.tax), total: Number(q.total),
+          shipping_available: q.shipping_available ?? true,
+          shipping_options: normalizeOptions(q.shipping_options),
+        } });
       }
     }, 250);
     return () => { cancelled = true; clearTimeout(t); };

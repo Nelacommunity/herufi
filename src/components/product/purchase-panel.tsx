@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, RotateCcw, ShieldCheck, Truck } from "lucide-react";
+import { Anchor, Check, RotateCcw, ShieldCheck } from "lucide-react";
+import { ShippingCalculator } from "@/components/shipping/shipping-calculator";
 import { Button } from "@/components/ui/button";
 import { PriceDisplay } from "@/components/product/price-display";
 import { QuantitySelector } from "@/components/product/quantity-selector";
@@ -15,19 +16,12 @@ import { isInStock } from "@/lib/queries/shared";
 import type { Product } from "@/lib/types";
 import { cn, formatPrice } from "@/lib/utils";
 import { useI18n } from "@/i18n/client";
-import { fmt, INTL_LOCALE, type Locale } from "@/i18n/config";
-import { FREE_SHIPPING_THRESHOLD } from "@/lib/constants";
+import { fmt } from "@/i18n/config";
 
-/** Air cargo from China: 10–14 days. */
-function deliveryWindow(locale: Locale) {
-  const f = new Intl.DateTimeFormat(INTL_LOCALE[locale], { month: "short", day: "numeric" });
-  const add = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
-  return `${f.format(add(10))} – ${f.format(add(14))}`;
-}
 
-export function PurchasePanel({ product }: { product: Product }) {
+export function PurchasePanel({ product, freeSeaShipping = null }: { product: Product; freeSeaShipping?: number | null }) {
   const { addToCart, trackView } = useStore();
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const p = t.product;
   const router = useRouter();
   const optionName = product.variants[0]?.name;
@@ -36,7 +30,6 @@ export function PurchasePanel({ product }: { product: Product }) {
   const [qty, setQty] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [added, setAdded] = useState(false);
-  const eta = deliveryWindow(locale);
   const [showSticky, setShowSticky] = useState(false);
   const ctaRef = useRef<HTMLDivElement>(null);
 
@@ -94,7 +87,13 @@ export function PurchasePanel({ product }: { product: Product }) {
       </a>
 
       <PriceDisplay price={product.price + extra} compareAt={product.compare_at_price ? product.compare_at_price + extra : null} size="lg" showBadge className="mt-6" />
-      <p className="mt-1 text-sm text-muted">{p.taxNote} {p.payNote}</p>
+      {freeSeaShipping != null && (
+        <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-success/10 px-3 py-1.5 text-sm font-semibold text-success">
+          <Anchor className="h-4 w-4" />
+          {freeSeaShipping > 0 ? fmt(t.shipping.freeNoteOver, { amount: formatPrice(freeSeaShipping) }) : t.shipping.pdpBadge}
+        </p>
+      )}
+      <p className="mt-2 text-sm text-muted">{p.taxNote} {p.payNote}</p>
 
       <p className="mt-6 text-pretty leading-relaxed text-muted">{product.description.split(". ").slice(0, 2).join(". ")}{product.description.split(". ").length > 2 ? "." : ""}</p>
 
@@ -143,11 +142,9 @@ export function PurchasePanel({ product }: { product: Product }) {
         <Button size="lg" variant="secondary" disabled={!available} onClick={() => add(true)}>{p.buyNow}</Button>
       </div>
 
-      <ul className="mt-8 divide-y divide-border rounded-2xl border border-border text-sm">
-        <li className="flex items-start gap-3 p-4">
-          <Truck className="mt-0.5 h-5 w-5 shrink-0" />
-          <div><p className="font-medium">{p.deliveryTitle} <span className="font-normal text-muted" suppressHydrationWarning>· {fmt(p.arrives, { eta })}</span></p><p className="text-muted">{fmt(p.deliveryText, { amount: formatPrice(FREE_SHIPPING_THRESHOLD) })}</p></div>
-        </li>
+      <ShippingCalculator product={product} quantity={quantity} unitPrice={product.price + extra} />
+
+      <ul className="mt-4 divide-y divide-border rounded-2xl border border-border text-sm">
         <li className="flex items-start gap-3 p-4">
           <RotateCcw className="mt-0.5 h-5 w-5 shrink-0" />
           <div><p className="font-medium">{p.returnsTitle}</p><p className="text-muted">{p.returnsText}</p></div>

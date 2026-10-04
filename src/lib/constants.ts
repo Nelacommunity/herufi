@@ -16,8 +16,6 @@ export type SortValue = (typeof SORT_OPTIONS)[number];
 
 /** Keys match the delivery_method values accepted by place_order. Labels live in the dictionaries. */
 export const DELIVERY_METHODS: DeliveryMethod[] = ["standard", "express", "sea"];
-/** Mirrors shipping_cost() in supabase/migrations/0005_tanzania.sql (display only). */
-export const FREE_SHIPPING_THRESHOLD = 250_000;
 
 export const MOBILE_MONEY = ["M-Pesa", "Tigo Pesa", "Airtel Money", "HaloPesa"] as const;
 

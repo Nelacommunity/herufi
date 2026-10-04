@@ -33,6 +33,7 @@ export function CheckoutSummary({ quote, loading, fallbackSubtotal, coupon, onCo
     return s.coupon[m as keyof typeof s.coupon] ?? s.coupon.invalid;
   };
   const ready = Boolean(quote) && !loading;
+  const saved = quote ? Math.max(0, (quote.shipping_list ?? quote.shipping) - quote.shipping) : 0;
 
   return (
     <div className={cn("rounded-[1.5rem] bg-surface-2 p-6 sm:p-7", className)}>
@@ -47,10 +48,24 @@ export function CheckoutSummary({ quote, loading, fallbackSubtotal, coupon, onCo
             loading={loading}
           />
         )}
-        <Row label={shippingLabel ?? s.shipping} value={quote ? (quote.shipping === 0 ? <span className="font-medium text-success">{t.common.free}</span> : formatPrice(quote.shipping)) : "—"} loading={!ready} />
+        <Row
+          label={shippingLabel ?? s.shipping}
+          value={quote ? (quote.shipping === 0 ? (
+            <span className="flex items-center gap-1.5">
+              {saved > 0 && <span className="text-sm text-subtle line-through">{formatPrice(quote.shipping_list)}</span>}
+              <span className="font-medium text-success">{t.common.free}</span>
+            </span>
+          ) : formatPrice(quote.shipping)) : "—"}
+          loading={!ready}
+        />
         <Row label={s.tax} value={quote ? formatPrice(quote.tax) : "—"} loading={!ready} />
         <div className="h-px bg-border-strong" />
         <Row className="text-lg font-semibold" label={s.total} value={quote ? formatPrice(quote.total) : "—"} loading={!ready} />
+        {ready && saved > 0 && (
+          <p className="rounded-xl bg-success/10 px-3 py-2 text-center text-sm font-medium text-success animate-fade-in">
+            {fmt(t.shipping.youSave, { amount: formatPrice(saved) })}
+          </p>
+        )}
       </dl>
 
       <div className="mt-5">

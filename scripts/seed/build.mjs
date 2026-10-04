@@ -2,7 +2,7 @@
 // Usage: node scripts/seed/build.mjs
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { categories, products, img, reviewAuthors, reviewTemplates, questions, coupons } from './catalog.mjs';
+import { categories, products, img, reviewAuthors, reviewTemplates, questions, coupons, shipping, DEFAULT_METHODS } from './catalog.mjs';
 
 let seed = 20261004;
 const rand = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296);
@@ -41,11 +41,13 @@ products.forEach((p, i) => {
   const stock = variants.length ? variants.reduce((s, v) => s + v.stock, 0) : p.stock;
   const sku = `HF-${p.category.slice(0, 3).toUpperCase()}-${String(1001 + i)}`;
   productRows.push({ ...p, id, slug, variants, stock });
-  out.push(`insert into public.products (id, category_id, name, slug, description, details, specifications, price, compare_at_price, brand, sku, stock_quantity, sales_count, is_featured, created_at, updated_at) values (` +
+  if (!shipping[p.name]) throw new Error(`Missing shipping data for ${p.name}`);
+  const [kg, l, w, h, methods = DEFAULT_METHODS] = shipping[p.name];
+  out.push(`insert into public.products (id, category_id, name, slug, description, details, specifications, price, compare_at_price, brand, sku, stock_quantity, sales_count, is_featured, weight_kg, length_cm, width_cm, height_cm, shipping_methods, created_at, updated_at) values (` +
     [q(id), q(catIds[p.category]), q(p.name), q(slug), q(p.description),
       `array[${p.details.map(q).join(', ')}]::text[]`, `${q(JSON.stringify(p.specs))}::jsonb`,
       tzs(p.price).toFixed(2), p.compare ? tzs(p.compare).toFixed(2) : 'null', q(p.brand), q(sku), stock, p.sales,
-      p.featured ? 'true' : 'false', ago(p.days), ago(p.days)].join(', ') + ');');
+      p.featured ? 'true' : 'false', kg, l, w, h, `array[${methods.map(q).join(', ')}]::text[]`, ago(p.days), ago(p.days)].join(', ') + ');');
   p.images.forEach((im, j) => {
     out.push(`insert into public.product_images (product_id, image_url, alt_text, sort_order) values (${q(id)}, ${q(img(im))}, ${q(`${p.name}${j ? ` – view ${j + 1}` : ''}`)}, ${j});`);
   });

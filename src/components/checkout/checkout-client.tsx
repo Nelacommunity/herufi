@@ -8,14 +8,16 @@ import { Check, ChevronDown, CreditCard, Lock, ShoppingBag, Smartphone } from "l
 import { useStore } from "@/providers/store-provider";
 import { placeOrder } from "@/actions/checkout";
 import { CheckoutSummary } from "@/components/checkout/checkout-summary";
-import { readCoupon, useQuote, writeCoupon } from "@/components/checkout/use-quote";
+import { readCoupon, useDeliveryPreference, useQuote, writeCoupon } from "@/components/checkout/use-quote";
+import { ShippingOptions } from "@/components/shipping/shipping-options";
+import { quoteFor, resolveMethod } from "@/lib/shipping";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DELIVERY_METHODS, MOBILE_MONEY, TZ_REGIONS } from "@/lib/constants";
+import { MOBILE_MONEY, TZ_REGIONS } from "@/lib/constants";
 import { cardBrand, isTzMobile, luhn, type AddressInput } from "@/lib/validation";
-import type { Address, DeliveryMethod, PaymentMethod } from "@/lib/types";
+import type { Address, PaymentMethod } from "@/lib/types";
 import { cn, formatPrice } from "@/lib/utils";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/config";
@@ -39,7 +41,7 @@ export function CheckoutClient({ email: initialEmail, addresses, paymentMethods,
   const [addressId, setAddressId] = useState<string | "new">(defaultAddress?.id ?? "new");
   const [address, setAddress] = useState<AddressInput>(emptyAddress);
   const [saveAddress, setSaveAddress] = useState(true);
-  const [delivery, setDelivery] = useState<DeliveryMethod>("standard");
+  const [preferred, setPreferred] = useDeliveryPreference();
   const [payKind, setPayKind] = useState<PayKind>("mobile");
   const [provider, setProvider] = useState<(typeof MOBILE_MONEY)[number]>("M-Pesa");
   const [mobile, setMobile] = useState("");
@@ -54,7 +56,11 @@ export function CheckoutClient({ email: initialEmail, addresses, paymentMethods,
   const [placing, startPlacing] = useTransition();
   const [summaryOpen, setSummaryOpen] = useState(false);
 
-  const { quote, loading } = useQuote(activeLines, delivery, coupon);
+  // Options don't depend on the chosen method, so switching method re-prices instantly (see quoteFor).
+  const { quote: baseQuote, loading } = useQuote(activeLines, "standard", coupon);
+  const options = baseQuote?.shipping_options ?? [];
+  const delivery = resolveMethod(options, preferred);
+  const quote = baseQuote ? quoteFor(baseQuote, delivery) : null;
   useEffect(() => { if (quote) applyQuote(quote.lines); }, [quote, applyQuote]);
 
   const shippingAddress: AddressInput | null = useMemo(() => {
@@ -144,12 +150,13 @@ export function CheckoutClient({ email: initialEmail, addresses, paymentMethods,
   }
 
   const blocked = activeLines.some((l) => l.maxQuantity <= 0 || l.quantity > l.maxQuantity);
-  const method = c.deliveryMethods[delivery];
+  const chosen = options.find((o) => o.method === delivery);
+  const methodLabel = t.shipping.methods[delivery]?.label ?? delivery;
   const [termsBefore, rest] = c.agree.split("{terms}");
   const [termsAfter, privacyAfter] = (rest ?? "").split("{privacy}");
 
   const summary = (
-    <CheckoutSummary quote={quote} loading={loading} fallbackSubtotal={subtotal} coupon={coupon} onCoupon={(code) => { setCoupon(code); writeCoupon(code || null); }}>
+    <CheckoutSummary quote={quote} loading={loading} shippingLabel={`${t.summary.shipping} (${methodLabel})`} fallbackSubtotal={subtotal} coupon={coupon} onCoupon={(code) => { setCoupon(code); writeCoupon(code || null); }}>
       <ul className="max-h-80 space-y-4 overflow-y-auto border-t border-border-strong pt-5">
         {activeLines.map((l) => (
           <li key={`${l.productId}:${l.variantId}`} className="flex items-center gap-3">
@@ -235,22 +242,11 @@ export function CheckoutClient({ email: initialEmail, addresses, paymentMethods,
           <Button size="lg" className="mt-6 w-full sm:w-auto" onClick={validateAddress}>{c.continueShipping}</Button>
         </StepCard>
 
-        <StepCard id={3} step={step} done={done} title={c.steps.delivery} editLabel={t.common.edit} onEdit={() => setStep(3)} summary={<p>{method.label} · {method.eta}</p>}>
-          <div className="space-y-2" role="radiogroup" aria-label={c.steps.delivery}>
-            {DELIVERY_METHODS.map((d) => {
-              const m = c.deliveryMethods[d];
-              return (
-                <OptionCard key={d} selected={delivery === d} onSelect={() => setDelivery(d)}>
-                  <div className="flex items-center justify-between gap-4">
-                    <div><p className="font-medium">{m.label}</p><p className="text-sm text-muted">{m.eta}</p></div>
-                    <p className="text-right text-sm font-medium">{delivery === d && quote ? (quote.shipping === 0 ? t.common.free : formatPrice(quote.shipping)) : m.price}</p>
-                  </div>
-                </OptionCard>
-              );
-            })}
-          </div>
-          <p className="mt-4 text-sm text-muted">{c.deliveryNote}</p>
-          <Button size="lg" className="mt-6 w-full sm:w-auto" onClick={() => complete(3)}>{c.continuePayment}</Button>
+        <StepCard id={3} step={step} done={done} title={c.steps.delivery} editLabel={t.common.edit} onEdit={() => setStep(3)} summary={<p>{methodLabel}{chosen && ` · ${fmt(t.shipping.days, { min: chosen.eta_min, max: chosen.eta_max })} · ${chosen.price === 0 ? t.common.free : formatPrice(chosen.price)}`}</p>}>
+          <p className="mb-4 text-sm text-muted">{t.shipping.subtitle}</p>
+          <ShippingOptions options={options} selected={delivery} onSelect={setPreferred} loading={loading} />
+          <p className="mt-4 text-sm text-muted">{t.shipping.allInclude}</p>
+          <Button size="lg" className="mt-6 w-full sm:w-auto" disabled={!quote?.shipping_available} onClick={() => complete(3)}>{c.continuePayment}</Button>
         </StepCard>
 
         <StepCard id={4} step={step} done={done} title={c.steps.payment} editLabel={t.common.edit} onEdit={() => setStep(4)}
@@ -337,7 +333,7 @@ export function CheckoutClient({ email: initialEmail, addresses, paymentMethods,
           </ul>
           {blocked && <p className="mt-4 text-sm text-sale">{c.unavailable} <Link href="/cart" className="underline">{c.updateBag}</Link>.</p>}
           {submitError && <p className="mt-4 rounded-xl bg-sale-soft px-4 py-3 text-sm text-sale" role="alert">{submitError}</p>}
-          <Button size="lg" className="mt-6 h-14 w-full text-base" loading={placing} disabled={blocked || !quote || loading} onClick={submit}>
+          <Button size="lg" className="mt-6 h-14 w-full text-base" loading={placing} disabled={blocked || !quote || loading || !quote.shipping_available} onClick={submit}>
             <Lock className="h-4 w-4" /> {c.placeOrder}{quote ? ` · ${formatPrice(quote.total)}` : ""}
           </Button>
           <p className="mt-3 text-center text-xs text-muted">

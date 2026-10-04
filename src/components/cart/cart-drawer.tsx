@@ -5,7 +5,6 @@ import { ShoppingBag } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { buttonVariants } from "@/components/ui/button";
 import { CartLineItem } from "@/components/cart/cart-line-item";
-import { FreeShippingMeter } from "@/components/cart/free-shipping-meter";
 import { useStore } from "@/providers/store-provider";
 import { formatPrice } from "@/lib/utils";
 import { useI18n } from "@/i18n/client";
@@ -44,8 +43,7 @@ export function CartDrawer() {
           <Link href="/products" onClick={closeCart} className={buttonVariants({ className: "mt-8", size: "lg" })}>{c.startShopping}</Link>
         </div>
       ) : (
-        <div className="px-5 pt-4 sm:px-6">
-          <FreeShippingMeter subtotal={subtotal} />
+        <div className="px-5 sm:px-6">
           <p className="sr-only">{plural(t.common.items, itemCount)}</p>
           <ul className="divide-y divide-border">
             {activeLines.map((l) => <CartLineItem key={`${l.productId}:${l.variantId}`} line={l} compact onNavigate={closeCart} />)}

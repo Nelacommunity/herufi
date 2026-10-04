@@ -53,6 +53,11 @@ const productSchema = z.object({
   stock_quantity: z.coerce.number().int().min(0).max(1000000),
   is_featured: z.boolean(),
   is_active: z.boolean(),
+  weight_kg: z.coerce.number().positive("Weight must be greater than 0").max(5000),
+  length_cm: z.coerce.number().positive("Length must be greater than 0").max(1000),
+  width_cm: z.coerce.number().positive("Width must be greater than 0").max(1000),
+  height_cm: z.coerce.number().positive("Height must be greater than 0").max(1000),
+  shipping_methods: z.array(z.enum(["standard", "express", "sea"])).min(1, "Allow at least one shipping method"),
   images: z.array(imageSchema).max(12),
   variants: z.array(variantSchema).max(50),
 });
@@ -253,4 +258,40 @@ export async function answerQuestion(id: string, answer: string): Promise<Action
   if (error) return fail(error, "We couldn't save the answer.");
   updateTag(CATALOG_TAG);
   return { ok: true, message: "Answer published" };
+}
+
+// Shipping rates -----------------------------------------------------------------
+
+const rateSchema = z.object({
+  method: z.enum(["standard", "express", "sea"]),
+  rate: z.coerce.number().min(0),
+  volumetric_kg_per_cbm: z.coerce.number().positive().max(1000),
+  min_charge: z.coerce.number().min(0),
+  free_over: z.string().optional(),
+  free_max_cbm: z.string().optional(),
+  eta_min_days: z.coerce.number().int().positive(),
+  eta_max_days: z.coerce.number().int().positive(),
+  is_active: z.string().optional(),
+}).refine((r) => r.eta_max_days >= r.eta_min_days, { message: "Max days must be at least min days", path: ["eta_max_days"] });
+
+export async function saveShippingRate(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const parsed = rateSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const { method, rate, free_over, free_max_cbm, is_active, ...r } = parsed.data;
+  const supabase = await admin();
+  const perCbm = method === "sea";
+  const { error } = await supabase.from("shipping_rates").update({
+    ...r,
+    rate_per_kg: perCbm ? null : rate,
+    rate_per_cbm: perCbm ? rate : null,
+    // Free shipping is a sea-freight promotion only; air methods are always charged.
+    free_over: perCbm && free_over !== undefined && free_over !== "" ? Number(free_over) : null,
+    free_max_cbm: perCbm && free_max_cbm ? Number(free_max_cbm) : null,
+    free_max_kg: null,
+    is_active: is_active === "on",
+  }).eq("method", method);
+  if (error) return fail(error, "We couldn't save these rates.");
+  refreshCatalog();
+  revalidatePath("/admin/shipping");
+  return { ok: true, message: "Shipping rates saved" };
 }

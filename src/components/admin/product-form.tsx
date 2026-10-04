@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import type { Category, Product } from "@/lib/types";
+import type { Category, DeliveryMethod, Product } from "@/lib/types";
 import { cn, slugify } from "@/lib/utils";
 
 type Img = { id?: string; image_url: string; alt_text: string };
@@ -37,6 +37,10 @@ export function ProductForm({ product, categories }: { product: Product | null; 
   const [stock, setStock] = useState(product?.stock_quantity.toString() ?? "0");
   const [featured, setFeatured] = useState(product?.is_featured ?? false);
   const [active, setActive] = useState(product?.is_active ?? true);
+  const [weight, setWeight] = useState(product?.weight_kg.toString() ?? "0.5");
+  const [dims, setDims] = useState({ l: product?.length_cm.toString() ?? "20", w: product?.width_cm.toString() ?? "15", h: product?.height_cm.toString() ?? "10" });
+  const [methods, setMethods] = useState<DeliveryMethod[]>(product?.shipping_methods ?? ["standard", "express", "sea"]);
+  const cbm = (Number(dims.l) * Number(dims.w) * Number(dims.h)) / 1_000_000 || 0;
   const [images, setImages] = useState<Img[]>(product?.images.map((i) => ({ id: i.id, image_url: i.image_url, alt_text: i.alt_text })) ?? []);
   const [variants, setVariants] = useState<Variant[]>(product?.variants.map((v) => ({ id: v.id, name: v.name, value: v.value, additional_price: String(v.additional_price), stock_quantity: String(v.stock_quantity) })) ?? []);
   const [uploading, setUploading] = useState(false);
@@ -96,6 +100,7 @@ export function ProductForm({ product, categories }: { product: Product | null; 
       specifications,
       price: Number(price), compare_at_price: compareAt ? Number(compareAt) : null,
       sku: sku || null, stock_quantity: Number(stock) || 0, is_featured: featured, is_active: active,
+      weight_kg: Number(weight), length_cm: Number(dims.l), width_cm: Number(dims.w), height_cm: Number(dims.h), shipping_methods: methods,
       images,
       variants: variants.filter((v) => v.name.trim() && v.value.trim()).map((v) => ({ ...v, additional_price: Number(v.additional_price) || 0, stock_quantity: Number(v.stock_quantity) || 0 })),
     };
@@ -225,8 +230,30 @@ export function ProductForm({ product, categories }: { product: Product | null; 
           {variants.length > 0 && <p className="mt-3 text-sm text-muted">Calculated from variant stock.</p>}
         </section>
 
+        <section className={card}>
+          <h2 className="mb-1 font-semibold">Shipping</h2>
+          <p className="mb-5 text-sm text-muted">Packed weight and box size drive cargo prices. <Link href="/admin/shipping" className="underline">Edit rates</Link></p>
+          <Field label="Weight (kg)" htmlFor="weight"><Input id="weight" inputMode="decimal" required value={weight} onChange={(e) => setWeight(e.target.value)} /></Field>
+          <p className="mb-1.5 mt-4 text-sm font-medium">Box size (cm)</p>
+          <div className="grid grid-cols-3 gap-2">
+            {(["l", "w", "h"] as const).map((k) => (
+              <input key={k} inputMode="decimal" required value={dims[k]} onChange={(e) => setDims({ ...dims, [k]: e.target.value })} aria-label={{ l: "Length (cm)", w: "Width (cm)", h: "Height (cm)" }[k]} placeholder={{ l: "L", w: "W", h: "H" }[k]}
+                className="h-11 w-full rounded-xl border border-border-strong bg-surface px-3 text-sm outline-none focus:border-foreground" />
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted tabular-nums">{cbm.toFixed(4)} m³ · volumetric weight {(cbm * 167).toFixed(1)} kg (air)</p>
+          <p className="mb-2 mt-5 text-sm font-medium">Allowed methods</p>
+          <div className="space-y-2.5">
+            {([["standard", "Air cargo"], ["express", "Express air"], ["sea", "Sea freight"]] as const).map(([m, label]) => (
+              <Checkbox key={m} checked={methods.includes(m)} label={label}
+                onChange={(e) => setMethods(e.target.checked ? [...methods, m] : methods.filter((x) => x !== m))} />
+            ))}
+          </div>
+          {!methods.length && <p className="mt-2 text-sm text-sale">Allow at least one method.</p>}
+        </section>
+
         <div className="flex flex-col gap-2">
-          <Button type="submit" size="lg" loading={saving}>{product ? "Save changes" : "Create product"}</Button>
+          <Button type="submit" size="lg" loading={saving} disabled={!methods.length}>{product ? "Save changes" : "Create product"}</Button>
           {product?.is_active && <Link href={`/products/${product.slug}`} target="_blank" className={buttonVariants({ variant: "secondary", size: "lg" })}>View in store</Link>}
           {product && (
             <Button type="button" variant="ghost" className="text-sale" loading={deleting} onClick={() => {

@@ -9,7 +9,9 @@ import { PurchasePanel } from "@/components/product/purchase-panel";
 import { ReviewsSection } from "@/components/product/reviews-section";
 import { QuestionsSection } from "@/components/product/questions-section";
 import { ProductRail } from "@/components/product/product-grid";
-import { getAllProductSlugs, getProductBySlug, getQuestions, getRelatedProducts, getReviews } from "@/lib/queries/catalog";
+import { getAllProductSlugs, getProductBySlug, getQuestions, getRelatedProducts, getReviews, getShippingRates } from "@/lib/queries/catalog";
+import { fmt } from "@/i18n/config";
+import { formatPrice } from "@/lib/utils";
 import { isInStock } from "@/lib/queries/shared";
 import { SITE_URL } from "@/lib/env";
 import { SITE } from "@/lib/constants";
@@ -63,7 +65,9 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const [reviews, questions, related, { t }] = await Promise.all([getReviews(product.id), getQuestions(product.id), getRelatedProducts(product), getI18n()]);
+  const [reviews, questions, related, rates, { t }] = await Promise.all([getReviews(product.id), getQuestions(product.id), getRelatedProducts(product), getShippingRates(), getI18n()]);
+  const s = t.shipping;
+  const seaPromo = product.shipping_methods.includes("sea") ? rates.find((r) => r.method === "sea" && r.free_over != null) : undefined;
   const p = t.product;
   const inStock = isInStock(product);
 
@@ -116,7 +120,7 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
         <div className="mt-0 grid gap-8 sm:mt-6 lg:grid-cols-[1.15fr_1fr] lg:gap-14 xl:gap-20">
           <ProductGallery images={product.images} name={product.name} badge={badge} />
           <div className="lg:sticky lg:top-24 lg:self-start">
-            <PurchasePanel product={product} />
+            <PurchasePanel product={product} freeSeaShipping={seaPromo ? (seaPromo.free_over ?? 0) : null} />
           </div>
         </div>
 
@@ -138,14 +142,32 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
                       <dt className="font-medium text-foreground">{k}</dt><dd>{String(v)}</dd>
                     </div>
                   ))}
+                  <div className="grid grid-cols-[40%_1fr] gap-4 px-4 py-3 text-sm"><dt className="font-medium text-foreground">{s.weight}</dt><dd>{product.weight_kg} kg</dd></div>
+                  <div className="grid grid-cols-[40%_1fr] gap-4 px-4 py-3 text-sm"><dt className="font-medium text-foreground">{s.packageSize}</dt><dd>{product.length_cm} × {product.width_cm} × {product.height_cm} cm</dd></div>
                   {product.sku && <div className="grid grid-cols-[40%_1fr] gap-4 px-4 py-3 text-sm"><dt className="font-medium text-foreground">{p.sku}</dt><dd className="font-mono text-xs leading-5">{product.sku}</dd></div>}
                 </dl>
               </Disclosure>
             )}
             <Disclosure title={p.shippingInfo}>
-              <ul className="space-y-2">
-                {p.shippingLines.map(([label, text]) => <li key={label}><strong className="text-foreground">{label}</strong>: {text}</li>)}
+              <p className="font-medium text-foreground">{s.howTitle}</p>
+              <ul className="mt-2 space-y-2">
+                {rates.map((r) => {
+                  const vars = {
+                    label: s.methods[r.method]?.label ?? r.method,
+                    days: fmt(s.days, { min: r.eta_min_days, max: r.eta_max_days }),
+                    rate: formatPrice(r.rate_per_kg ?? r.rate_per_cbm),
+                    min: formatPrice(r.min_charge),
+                  };
+                  return (
+                    <li key={r.method}>
+                      {fmt(r.rate_per_kg != null ? s.howKg : s.howCbm, vars)}
+                      {!product.shipping_methods.includes(r.method) && <strong className="ml-1 text-sale">{s.unavailableItem}.</strong>}
+                    </li>
+                  );
+                })}
               </ul>
+              {seaPromo && <p className="mt-2 font-medium text-success">{seaPromo.free_over! > 0 ? fmt(s.howFreeOver, { amount: formatPrice(seaPromo.free_over) }) : s.howFree}</p>}
+              <p className="mt-2">{s.allInclude}</p>
             </Disclosure>
             <Disclosure title={p.returnsPolicy}>
               <p>{p.returnsPolicyText}</p>

@@ -62,6 +62,7 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
           <div className="flex justify-between"><dt className="text-muted">{t.summary.shipping}</dt><dd className="tabular-nums">{Number(order.shipping) === 0 ? t.common.free : formatPrice(order.shipping)}</dd></div>
           <div className="flex justify-between"><dt className="text-muted">{t.summary.tax}</dt><dd className="tabular-nums">{formatPrice(order.tax)}</dd></div>
           <div className="flex justify-between border-t border-border pt-3 text-base font-semibold"><dt>{t.summary.total}</dt><dd className="tabular-nums">{formatPrice(order.total)}</dd></div>
+          {Number(order.shipping_saved ?? 0) > 0 && <p className="text-right font-medium text-success">{fmt(t.shipping.youSaved, { amount: formatPrice(order.shipping_saved) })}</p>}
         </dl>
       </div>
       <p className="text-sm text-muted">{a.needHelp} <Link href="/help/contact" className="font-medium text-foreground underline underline-offset-4">{a.contactSupport}</Link> {a.orReadOur} <Link href="/help/returns" className="font-medium text-foreground underline underline-offset-4">{a.readReturns}</Link>.</p>
