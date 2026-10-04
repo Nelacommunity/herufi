@@ -565,3 +565,10 @@ export const shipping = {
   'Pour-Over Coffee Set': [1.4, 25, 20, 25],
 };
 export const DEFAULT_METHODS = ALL;
+
+// Products (by index above) that get an extra close-up view: a 2x focal-point crop of the main photo,
+// served by Unsplash's CDN. Reviewed by hand: products whose close-up shows a real brand mark or crops
+// to nothing useful are excluded. Real multi-angle photos should be uploaded in the admin.
+const CLOSE_UP_EXCLUDED = new Set([8, 9, 14, 16, 19, 24, 26, 30, 35, 36, 39, 40, 41, 48, 53]);
+export const closeUps = new Set(products.map((p, i) => i).filter((i) => products[i].images.length < 3 && !CLOSE_UP_EXCLUDED.has(i)));
+export const closeUpUrl = (id) => `${img(id)}&crop=focalpoint&fp-x=0.5&fp-y=0.5&fp-z=2`;

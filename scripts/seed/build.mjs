@@ -2,7 +2,7 @@
 // Usage: node scripts/seed/build.mjs
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { categories, products, img, reviewAuthors, reviewTemplates, questions, coupons, shipping, DEFAULT_METHODS } from './catalog.mjs';
+import { categories, products, img, reviewAuthors, reviewTemplates, questions, coupons, shipping, DEFAULT_METHODS, closeUps, closeUpUrl } from './catalog.mjs';
 
 let seed = 20261004;
 const rand = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296);
@@ -51,6 +51,9 @@ products.forEach((p, i) => {
   p.images.forEach((im, j) => {
     out.push(`insert into public.product_images (product_id, image_url, alt_text, sort_order) values (${q(id)}, ${q(img(im))}, ${q(`${p.name}${j ? ` – view ${j + 1}` : ''}`)}, ${j});`);
   });
+  if (closeUps.has(i)) {
+    out.push(`insert into public.product_images (product_id, image_url, alt_text, sort_order) values (${q(id)}, ${q(closeUpUrl(p.images[0]))}, ${q(`${p.name} – close-up detail`)}, ${p.images.length});`);
+  }
   variants.forEach((v) => {
     out.push(`insert into public.product_variants (id, product_id, name, value, additional_price, stock_quantity, sort_order) values (${q(v.id)}, ${q(id)}, ${q(v.name)}, ${q(v.value)}, ${tzs(v.add ?? 0).toFixed(2)}, ${v.stock}, ${v.sort});`);
   });
