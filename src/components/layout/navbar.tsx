@@ -59,7 +59,7 @@ export function Navbar() {
           <Menu className="h-5 w-5" />
         </button>
 
-        <Logo className={cn("transition-[font-size] duration-300", scrolled && "text-[25px]")} />
+        <Logo className={cn("text-[24px] transition-[font-size] duration-300 sm:text-[28px]", scrolled && "sm:text-[25px]")} />
 
         <nav aria-label="Primary" className="hidden flex-1 items-center gap-0.5 lg:flex">
           {links.map((l) => (

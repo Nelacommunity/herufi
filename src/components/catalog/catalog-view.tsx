@@ -10,6 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { countActive, parseFilters, type RawParams } from "@/components/catalog/params";
 import { getBrandFacets, getCategories, listProducts } from "@/lib/queries/catalog";
 import { POPULAR_SEARCHES } from "@/lib/constants";
+import { absoluteUrl, jsonLd } from "@/lib/seo";
 import { getI18n } from "@/i18n/server";
 import { fmt } from "@/i18n/config";
 
@@ -19,8 +20,15 @@ export async function CatalogView({ params, basePath, fixedCategory }: { params:
   const c = t.catalog;
   const activeCount = countActive(filters, fixedCategory);
 
+  const itemList = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    numberOfItems: result.total,
+    itemListElement: result.items.map((p, i) => ({ "@type": "ListItem", position: (result.page - 1) * result.items.length + i + 1, url: absoluteUrl(`/products/${p.slug}`), name: p.name })),
+  };
   return (
     <CatalogShell>
+      {result.items.length > 0 && <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(itemList)} />}
       <div className="grid gap-10 lg:grid-cols-[240px_1fr] xl:gap-14">
         <aside className="hidden lg:block" aria-label={c.filters}>
           <div className="sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pb-8 pr-2 no-scrollbar">

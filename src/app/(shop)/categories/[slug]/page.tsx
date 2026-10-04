@@ -5,8 +5,10 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { CatalogView } from "@/components/catalog/catalog-view";
 import { getCategories, getCategoryBySlug } from "@/lib/queries/catalog";
 import { getI18n } from "@/i18n/server";
-import { fmt, plural } from "@/i18n/config";
+import { plural } from "@/i18n/config";
 import { categoryName } from "@/lib/utils";
+import { SEO_COPY } from "@/lib/seo-content";
+import { pageAlternates } from "@/lib/seo";
 
 export async function generateStaticParams() {
   try {
@@ -18,14 +20,15 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps<"/categories/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const [cat, { t }] = await Promise.all([getCategoryBySlug(slug), getI18n()]);
+  const [cat, { t, locale }] = await Promise.all([getCategoryBySlug(slug), getI18n()]);
   if (!cat) return { title: "404" };
   const name = categoryName(t.categories, cat);
-  const description = t.categoryDescriptions[cat.slug] ?? cat.description ?? undefined;
+  const copy = SEO_COPY[locale];
+  const description = copy.categoryDescription(name, cat.product_count ?? 0);
   return {
-    title: fmt(t.catalog.categoryMeta, { name, n: cat.product_count ?? 0 }),
+    title: copy.categoryTitle(name),
     description,
-    alternates: { canonical: `/categories/${cat.slug}` },
+    alternates: pageAlternates(`/categories/${cat.slug}`, locale),
     openGraph: { title: name, description, images: cat.image_url ? [{ url: cat.image_url, width: 1200, height: 800, alt: cat.name }] : undefined },
   };
 }

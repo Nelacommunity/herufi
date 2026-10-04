@@ -2,10 +2,11 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { HELP_TOPICS } from "@/lib/help";
 import { getI18n } from "@/i18n/server";
+import { pageAlternates } from "@/lib/seo";
 
 export async function generateMetadata() {
-  const { t } = await getI18n();
-  return { title: t.help.crumb, description: t.help.desc };
+  const { t, locale } = await getI18n();
+  return { title: t.help.crumb, description: t.help.desc, alternates: pageAlternates("/help", locale) };
 }
 
 export default async function HelpIndex() {

@@ -12,14 +12,14 @@ export async function Footer({ categories }: { categories: Category[] }) {
   const f = t.footer;
   const columns = [
     { title: f.shop, links: [{ href: "/products?sort=newest", label: f.newArrivals }, { href: "/products?sort=popular", label: f.bestSellers }, { href: "/products?deals=1", label: f.deals }, ...categories.slice(0, 5).map((c) => ({ href: `/categories/${c.slug}`, label: categoryName(t.categories, c) }))] },
-    { title: f.help, links: [{ href: "/help/shipping", label: f.shipping }, { href: "/help/returns", label: f.returns }, { href: "/help/faq", label: f.faq }, { href: "/help/contact", label: f.contact }, { href: "/account/orders", label: f.track }] },
+    { title: f.help, links: [{ href: "/guides/buy-from-china-to-tanzania", label: t.footer.guide }, { href: "/help/shipping", label: f.shipping }, { href: "/help/returns", label: f.returns }, { href: "/help/faq", label: f.faq }, { href: "/help/contact", label: f.contact }, { href: "/account/orders", label: f.track }] },
     { title: f.company, links: [{ href: "/help/about", label: f.about }, { href: "/help/privacy", label: f.privacy }, { href: "/help/terms", label: f.terms }] },
   ];
   return (
     <footer className="mt-24 border-t border-border bg-surface">
       <div className="container-page grid gap-12 py-16 lg:grid-cols-[1.4fr_2fr] lg:gap-20">
         <div className="max-w-sm">
-          <Logo />
+          <Logo className="text-[32px]" />
           <p className="mt-4 text-pretty text-muted">{f.blurb}</p>
           <p className="mb-3 mt-8 text-sm font-medium">{f.newsletter}</p>
           <NewsletterForm />

@@ -2,7 +2,8 @@ import "server-only";
 import { cache } from "react";
 import { createPublicClient } from "@/lib/supabase/public";
 import { PAGE_SIZE, type SortValue } from "@/lib/constants";
-import type { Category, Product, ProductQuestion, ProductSummary, Review, ShippingRate } from "@/lib/types";
+import type { Category, Product, ProductQuestion, ProductSummary, Review, ShippingOption, ShippingRate } from "@/lib/types";
+import { normalizeOptions } from "@/lib/shipping";
 import { PRODUCT_SELECT, SUMMARY_SELECT, toProduct, toSummary } from "@/lib/queries/shared";
 
 export const getCategories = cache(async (): Promise<Category[]> => {
@@ -195,3 +196,22 @@ export const getFreeShippingPromo = cache(async () => {
   const sea = (await getShippingRates()).find((r) => r.method === "sea");
   return sea && sea.free_over != null ? { freeOver: sea.free_over, maxCbm: sea.free_max_cbm } : null;
 });
+
+/** Worked shipping examples for the buying guide, priced by the live shipping_options function. */
+export async function getShippingExamples(slugs: string[]): Promise<{ name: string; slug: string; price: number; weight_kg: number; options: ShippingOption[] }[]> {
+  const db = createPublicClient(3600);
+  const { data, error } = await db.from("products").select("id, name, slug, price, weight_kg").in("slug", slugs).eq("is_active", true);
+  if (error || !data) return []; // shipping columns missing before migration 0006
+  const rows = await Promise.all(data.map(async (p) => {
+    const { data: opts, error: e } = await db.rpc("shipping_options", { items: [{ product_id: p.id, quantity: 1 }], discounted_subtotal: Number(p.price) });
+    return e ? null : { name: p.name, slug: p.slug, price: Number(p.price), weight_kg: Number(p.weight_kg), options: normalizeOptions(opts) };
+  }));
+  return slugs.map((s) => rows.find((r) => r?.slug === s)).filter((r): r is NonNullable<typeof r> => Boolean(r));
+}
+
+/** Shipping options for one unit of a product (used for Product structured data). */
+export async function getProductShippingOptions(productId: string, price: number): Promise<ShippingOption[]> {
+  const db = createPublicClient(3600);
+  const { data, error } = await db.rpc("shipping_options", { items: [{ product_id: productId, quantity: 1 }], discounted_subtotal: price });
+  return error ? [] : normalizeOptions(data);
+}

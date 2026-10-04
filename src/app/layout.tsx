@@ -26,8 +26,12 @@ export async function generateMetadata(): Promise<Metadata> {
     keywords: t.meta.keywords,
     openGraph: { type: "website", siteName: SITE.name, title, description: t.meta.description, url: "/", locale: locale === "sw" ? "sw_TZ" : "en_TZ" },
     twitter: { card: "summary_large_image", title, description: t.meta.description },
-    alternates: { canonical: "/" },
-    robots: { index: true, follow: true },
+    robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 } },
+    category: "shopping",
+    formatDetection: { telephone: false },
+    appleWebApp: { title: SITE.name, statusBarStyle: "default" },
+    // Local relevance signals for Tanzania.
+    other: { "geo.region": "TZ-02", "geo.placename": "Dar es Salaam", "geo.position": "-6.7924;39.2083", ICBM: "-6.7924, 39.2083" },
   };
 }
 

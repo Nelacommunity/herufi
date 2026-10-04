@@ -9,7 +9,9 @@ import { PurchasePanel } from "@/components/product/purchase-panel";
 import { ReviewsSection } from "@/components/product/reviews-section";
 import { QuestionsSection } from "@/components/product/questions-section";
 import { ProductRail } from "@/components/product/product-grid";
-import { getAllProductSlugs, getProductBySlug, getQuestions, getRelatedProducts, getReviews, getShippingRates } from "@/lib/queries/catalog";
+import { getAllProductSlugs, getProductBySlug, getProductShippingOptions, getQuestions, getRelatedProducts, getReviews, getShippingRates } from "@/lib/queries/catalog";
+import { SEO_COPY } from "@/lib/seo-content";
+import { jsonLd, pageAlternates } from "@/lib/seo";
 import { fmt } from "@/i18n/config";
 import { formatPrice } from "@/lib/utils";
 import { isInStock } from "@/lib/queries/shared";
@@ -27,15 +29,18 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: PageProps<"/products/[slug]">): Promise<Metadata> {
-  const { slug } = await params;
+  const [{ slug }, { locale }] = await Promise.all([params, getI18n()]);
   const product = await getProductBySlug(slug);
-  if (!product) return { title: "Product not found", robots: { index: false } };
-  const description = `${product.description.slice(0, 155).trimEnd()}…`;
+  if (!product) return { title: "404", robots: { index: false } };
+  const copy = SEO_COPY[locale];
+  const lead = `${product.description.split(". ")[0].replace(/\.$/, "")}.`;
+  const description = copy.productDescription(product.name, product.brand, formatPrice(product.price), lead).slice(0, 300);
   const image = product.images[0];
   return {
-    title: `${product.name} by ${product.brand}`,
+    title: copy.productTitle(product.name),
     description,
-    alternates: { canonical: `/products/${product.slug}` },
+    keywords: [product.name, product.brand, `${product.name} price in Tanzania`, `${product.name} bei Tanzania`, product.category?.name ?? "", "buy from China Tanzania"].filter(Boolean),
+    alternates: pageAlternates(`/products/${product.slug}`, locale),
     openGraph: {
       type: "website",
       title: product.name,
@@ -65,13 +70,13 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const [reviews, questions, related, rates, { t }] = await Promise.all([getReviews(product.id), getQuestions(product.id), getRelatedProducts(product), getShippingRates(), getI18n()]);
+  const [reviews, questions, related, rates, shippingOptions, { t }] = await Promise.all([getReviews(product.id), getQuestions(product.id), getRelatedProducts(product), getShippingRates(), getProductShippingOptions(product.id, product.price), getI18n()]);
   const s = t.shipping;
   const seaPromo = product.shipping_methods.includes("sea") ? rates.find((r) => r.method === "sea" && r.free_over != null) : undefined;
   const p = t.product;
   const inStock = isInStock(product);
 
-  const jsonLd = {
+  const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
@@ -88,8 +93,29 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
       price: product.price.toFixed(2),
       availability: inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
-      seller: { "@type": "Organization", name: SITE.name },
+      priceValidUntil: `${new Date().getFullYear() + 1}-12-31`,
+      seller: { "@id": `${SITE_URL}/#organization`, "@type": "Organization", name: SITE.name },
+      shippingDetails: shippingOptions.filter((o) => o.available).map((o) => ({
+        "@type": "OfferShippingDetails",
+        shippingLabel: t.shipping.methods[o.method]?.label ?? o.method,
+        shippingRate: { "@type": "MonetaryAmount", value: o.price, currency: "TZS" },
+        shippingDestination: { "@type": "DefinedRegion", addressCountry: "TZ" },
+        deliveryTime: {
+          "@type": "ShippingDeliveryTime",
+          handlingTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 2, unitCode: "DAY" },
+          transitTime: { "@type": "QuantitativeValue", minValue: o.eta_min, maxValue: o.eta_max, unitCode: "DAY" },
+        },
+      })),
+      hasMerchantReturnPolicy: {
+        "@type": "MerchantReturnPolicy",
+        applicableCountry: "TZ",
+        returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+        merchantReturnDays: 14,
+        returnFees: "https://schema.org/FreeReturn",
+      },
     },
+    countryOfOrigin: "CN",
+    weight: { "@type": "QuantitativeValue", value: product.weight_kg, unitCode: "KGM" },
     ...(product.review_count > 0 && {
       aggregateRating: { "@type": "AggregateRating", ratingValue: product.rating, reviewCount: product.review_count },
       review: reviews.slice(0, 5).map((r) => ({
@@ -107,7 +133,7 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
 
   return (
     <div className="pb-8">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(productSchema)} />
       <div className="container-page pt-4 sm:pt-8">
         <div className="hidden sm:block">
           <Breadcrumbs items={[

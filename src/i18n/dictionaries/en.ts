@@ -4,7 +4,7 @@
 const en = {
   meta: {
     tagline: "Factory prices. Delivered to Tanzania.",
-    description: "Herufi lets you buy direct from verified factories in China and get it delivered across Tanzania. Customs handled, pay in shillings with M-Pesa or card.",
+    description: "Shop factory-direct from verified suppliers in China and get it delivered to your door in Dar es Salaam, Arusha, Mwanza and across Tanzania. Free sea shipping, customs cleared for you, prices in TZS, pay with M-Pesa or card.",
     keywords: ["buy from China Tanzania", "online shopping Tanzania", "Dar es Salaam delivery", "M-Pesa shopping", "electronics", "fashion", "home"],
   },
   common: {
@@ -120,6 +120,7 @@ const en = {
     newArrivals: "New arrivals",
     bestSellers: "Best sellers",
     deals: "Deals",
+    guide: "How to buy from China",
     shipping: "Shipping from China",
     returns: "Returns",
     faq: "FAQ",

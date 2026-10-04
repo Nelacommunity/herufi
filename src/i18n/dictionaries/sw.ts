@@ -4,7 +4,7 @@ import type { Dictionary } from "./en";
 const sw: Dictionary = {
   meta: {
     tagline: "Bei ya kiwandani. Tunafikisha Tanzania.",
-    description: "Herufi inakuwezesha kununua moja kwa moja kutoka viwanda vilivyothibitishwa China na kuletewa popote Tanzania. Ushuru tunashughulikia sisi, unalipa kwa shilingi kupitia M-Pesa au kadi.",
+    description: "Nunua moja kwa moja kutoka viwanda vilivyothibitishwa China na tukuletee mlangoni Dar es Salaam, Arusha, Mwanza na Tanzania nzima. Usafirishaji wa meli bure, ushuru tunashughulikia, bei kwa shilingi, lipa kwa M-Pesa au kadi.",
     keywords: ["nunua kutoka China", "manunuzi mtandaoni Tanzania", "usafirishaji Dar es Salaam", "lipa kwa M-Pesa", "elektroniki", "mitindo", "nyumbani"],
   },
   common: {
@@ -120,6 +120,7 @@ const sw: Dictionary = {
     newArrivals: "Bidhaa mpya",
     bestSellers: "Zinazouzwa zaidi",
     deals: "Ofa",
+    guide: "Jinsi ya kununua kutoka China",
     shipping: "Usafirishaji kutoka China",
     returns: "Kurudisha bidhaa",
     faq: "Maswali ya mara kwa mara",

@@ -6,13 +6,17 @@ import { getCategoryBySlug } from "@/lib/queries/catalog";
 import { getI18n } from "@/i18n/server";
 import { fmt } from "@/i18n/config";
 import { categoryName } from "@/lib/utils";
+import { SEO_COPY } from "@/lib/seo-content";
+import { pageAlternates } from "@/lib/seo";
 
 export async function generateMetadata({ searchParams }: PageProps<"/products">): Promise<Metadata> {
-  const [f, { t }] = [parseFilters(await searchParams), await getI18n()];
+  const [f, { t, locale }] = [parseFilters(await searchParams), await getI18n()];
   if (f.q) return { title: fmt(t.catalog.searchMeta, { q: f.q }), robots: { index: false, follow: true } };
   const cat = f.category ? await getCategoryBySlug(f.category) : null;
-  const title = f.deals ? t.catalog.deals : cat ? categoryName(t.categories, cat) : f.sort === "newest" ? t.catalog.newArrivals : t.catalog.shopAll;
-  return { title, description: t.catalog.metaDesc, alternates: { canonical: cat ? `/categories/${cat.slug}` : "/products" } };
+  const copy = SEO_COPY[locale];
+  const title = f.deals ? t.catalog.deals : cat ? categoryName(t.categories, cat) : f.sort === "newest" ? t.catalog.newArrivals : copy.productsTitle;
+  // Filtered and sorted views consolidate to the clean listing (or the category page) for search engines.
+  return { title, description: copy.productsDescription, alternates: pageAlternates(cat ? `/categories/${cat.slug}` : "/products", locale) };
 }
 
 export default async function ProductsPage({ searchParams }: PageProps<"/products">) {
