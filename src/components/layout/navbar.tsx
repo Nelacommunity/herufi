@@ -81,14 +81,14 @@ export function Navbar() {
           <LanguageSwitcher compact className="mr-1 hidden sm:inline-flex" />
           <button
             onClick={openSearch}
-            className="hidden h-10 w-64 items-center gap-2.5 rounded-full border border-border bg-surface px-4 text-sm text-subtle transition-colors hover:border-border-strong lg:w-52 md:flex xl:w-64"
+            className="hidden h-10 w-64 items-center gap-2.5 rounded-full border border-border bg-surface px-4 text-sm text-subtle transition-colors hover:border-border-strong md:flex lg:hidden xl:flex xl:w-60 2xl:w-72"
             aria-label={t.nav.searchProducts}
           >
             <Search className="h-4 w-4" />
             <span className="flex-1 text-left">{t.nav.searchProducts}</span>
             <kbd className="rounded-md border border-border px-1.5 font-mono text-[11px] text-muted">⌘K</kbd>
           </button>
-          <button onClick={openSearch} className="grid h-10 w-10 place-items-center rounded-full hover:bg-surface-2 md:hidden" aria-label={t.common.search}>
+          <button onClick={openSearch} className="grid h-10 w-10 place-items-center rounded-full hover:bg-surface-2 md:hidden lg:grid xl:hidden" aria-label={t.common.search}>
             <Search className="h-5 w-5" />
           </button>
 

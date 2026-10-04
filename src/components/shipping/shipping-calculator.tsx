@@ -37,7 +37,7 @@ export function ShippingCalculator({ product, quantity, unitPrice }: { product: 
 
   return (
     <section className="mt-8 rounded-2xl border border-border p-4 sm:p-5" aria-labelledby="shipping-calc-title">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="shipping-calc-title" className="font-semibold">{s.title}</h2>
           <p className="mt-0.5 text-sm text-muted">{fmt(s.priceFor, { items: plural(t.common.items, quantity) })}</p>

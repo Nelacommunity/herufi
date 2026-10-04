@@ -143,14 +143,14 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
           ]} />
         </div>
 
-        <div className="mt-0 grid gap-8 sm:mt-6 lg:grid-cols-[1.15fr_1fr] lg:gap-14 xl:gap-20">
+        <div className="mt-0 grid gap-8 sm:mt-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-14 xl:gap-20">
           <ProductGallery images={product.images} name={product.name} badge={badge} />
-          <div className="lg:sticky lg:top-24 lg:self-start">
+          <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
             <PurchasePanel product={product} freeSeaShipping={seaPromo ? (seaPromo.free_over ?? 0) : null} />
           </div>
         </div>
 
-        <div className="mt-20 grid gap-16 lg:grid-cols-[1.15fr_1fr] lg:gap-14 xl:gap-20">
+        <div className="mt-20 grid gap-16 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-14 xl:gap-20">
           <div>
             <Disclosure title={p.description} defaultOpen>
               <p>{product.description}</p>

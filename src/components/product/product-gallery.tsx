@@ -35,7 +35,9 @@ export function ProductGallery({ images, name, badge }: { images: ProductImage[]
   const caption = (img: ProductImage) => (img.alt_text && img.alt_text !== name ? img.alt_text : "");
 
   return (
-    <div className="flex flex-col gap-3 lg:flex-row-reverse lg:gap-4">
+    // self-start: in the page grid the gallery must keep its own height instead of stretching to the
+    // (much taller) purchase column; sticky keeps it in view while the details scroll past.
+    <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24 lg:flex-row-reverse lg:gap-4 lg:self-start">
       {/* Stage */}
       <div
         className="group/stage relative -mx-4 overflow-hidden bg-surface-2 outline-none sm:-mx-6 lg:mx-0 lg:flex-1 lg:rounded-[1.5rem]"
