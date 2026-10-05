@@ -1,11 +1,13 @@
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { ShippingRateForm } from "@/components/admin/shipping-rates-form";
 import { createClient } from "@/lib/supabase/server";
+import { requirePermission } from "@/lib/auth";
 import type { ShippingRate } from "@/lib/types";
 
 export const metadata = { title: "Shipping" };
 
 export default async function AdminShipping() {
+  await requirePermission("shipping.manage");
   const supabase = await createClient();
   const { data, error } = await supabase.from("shipping_rates").select("*").order("sort_order");
   const rates = ((data ?? []) as ShippingRate[]).map((r) => ({

@@ -4,6 +4,9 @@ import { AdminPageHeader } from "@/components/admin/page-header";
 import { RevenueChart } from "@/components/admin/revenue-chart";
 import { OrderStatusBadge } from "@/components/account/order-status";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth";
+import { can } from "@/lib/permissions";
+import { StaffHome } from "@/components/admin/staff-home";
 import { ORDER_STATUSES, ORDER_STATUS_LABEL } from "@/lib/constants";
 import type { OrderStatus } from "@/lib/types";
 import { cn, formatDate, formatPrice } from "@/lib/utils";
@@ -30,7 +33,10 @@ function Delta({ now, prev }: { now: number; prev: number }) {
   );
 }
 
-export default async function AdminOverview() {
+export default async function AdminOverview({ searchParams }: PageProps<"/admin">) {
+  const { profile } = await requireAdmin();
+  const denied = (await searchParams).denied === "1";
+  if (!can(profile, "analytics.view")) return <StaffHome profile={profile} denied={denied} />;
   const supabase = await createClient();
   const [{ data: m, error }, recent, lowStock] = await Promise.all([
     supabase.rpc("admin_metrics", { days: 30 }),
@@ -53,6 +59,7 @@ export default async function AdminOverview() {
 
   return (
     <>
+      {denied && <p className="mb-6 rounded-xl bg-sale-soft px-4 py-3 text-sm text-sale">You don&apos;t have permission to open that page.</p>}
       <AdminPageHeader title="Overview" description="How the store is performing over the last 30 days." />
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {tiles.map((t, i) => (

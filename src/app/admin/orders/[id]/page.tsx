@@ -6,6 +6,8 @@ import { AdminPageHeader } from "@/components/admin/page-header";
 import { OrderStatusSelect } from "@/components/admin/order-status-select";
 import { OrderTimeline } from "@/components/account/order-status";
 import { createClient } from "@/lib/supabase/server";
+import { requirePermission } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import en from "@/i18n/dictionaries/en";
 import type { Order } from "@/lib/types";
 import { formatDate, formatPrice } from "@/lib/utils";
@@ -15,6 +17,7 @@ export const metadata = { title: "Order" };
 export default async function AdminOrderDetail({ params }: PageProps<"/admin/orders/[id]">) {
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
+  const { profile } = await requirePermission("orders.view");
   const supabase = await createClient();
   const { data } = await supabase.from("orders").select("*, items:order_items(*)").eq("id", id).maybeSingle();
   if (!data) notFound();
@@ -26,7 +29,7 @@ export default async function AdminOrderDetail({ params }: PageProps<"/admin/ord
   return (
     <>
       <Link href="/admin/orders" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Orders</Link>
-      <AdminPageHeader title={`Order ${order.order_number}`} description={`Placed ${formatDate(order.created_at, "long")} · Updated ${formatDate(order.updated_at)}`} actions={<OrderStatusSelect id={order.id} status={order.status} />} />
+      <AdminPageHeader title={`Order ${order.order_number}`} description={`Placed ${formatDate(order.created_at, "long")} · Updated ${formatDate(order.updated_at)}`} actions={can(profile, "orders.update") ? <OrderStatusSelect id={order.id} status={order.status} /> : undefined} />
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
           <div className={card}><OrderTimeline status={order.status} /></div>
@@ -56,7 +59,7 @@ export default async function AdminOrderDetail({ params }: PageProps<"/admin/ord
           <section className={card}>
             <h2 className="flex items-center gap-2 text-sm font-semibold"><User className="h-4 w-4" /> Customer</h2>
             {customer ? (
-              <Link href={`/admin/customers/${customer.user_id}`} className="mt-3 block text-sm hover:underline">{customer.full_name ?? customer.email}</Link>
+              can(profile, "customers.view") ? <Link href={`/admin/customers/${customer.user_id}`} className="mt-3 block text-sm hover:underline">{customer.full_name ?? customer.email}</Link> : <p className="mt-3 text-sm">{customer.full_name ?? customer.email}</p>
             ) : <p className="mt-3 text-sm text-muted">Guest checkout</p>}
             <p className="mt-1 flex items-center gap-2 text-sm text-muted"><Mail className="h-3.5 w-3.5" /> {order.email}</p>
           </section>

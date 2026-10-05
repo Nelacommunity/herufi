@@ -5,12 +5,15 @@ import { AdminPageHeader } from "@/components/admin/page-header";
 import { ProductRowActions } from "@/components/admin/product-row-actions";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
+import { requirePermission } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { cn, formatPrice } from "@/lib/utils";
 
 export const metadata = { title: "Products" };
 const PER_PAGE = 20;
 
 export default async function AdminProducts({ searchParams }: PageProps<"/admin/products">) {
+  const { profile } = await requirePermission("products.create", "products.edit", "products.delete", "questions.answer");
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 80) : "";
   const filter = typeof sp.filter === "string" ? sp.filter : "all";
@@ -32,7 +35,7 @@ export default async function AdminProducts({ searchParams }: PageProps<"/admin/
 
   return (
     <>
-      <AdminPageHeader title="Products" description={`${count ?? 0} products in your catalog`} actions={<Link href="/admin/products/new" className={buttonVariants()}><Plus className="h-4 w-4" /> Add product</Link>} />
+      <AdminPageHeader title="Products" description={`${count ?? 0} products in your catalog`} actions={can(profile, "products.create") ? <Link href="/admin/products/new" className={buttonVariants()}><Plus className="h-4 w-4" /> Add product</Link> : undefined} />
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
           {[["all", "All"], ["active", "Active"], ["draft", "Draft"], ["low", "Low stock"], ["sale", "On sale"]].map(([v, l]) => (
@@ -68,7 +71,7 @@ export default async function AdminProducts({ searchParams }: PageProps<"/admin/
                   <td className={cn("py-3 tabular-nums", p.stock_quantity === 0 ? "font-medium text-sale" : p.stock_quantity < 10 && "text-warning")}>{p.stock_quantity} in stock{p.variants?.length ? <span className="text-xs text-muted"> · {p.variants.length} variants</span> : null}</td>
                   <td className="py-3 tabular-nums">{formatPrice(p.price)}{p.compare_at_price && <span className="ml-1.5 text-xs text-subtle line-through">{formatPrice(p.compare_at_price)}</span>}</td>
                   <td className="py-3 tabular-nums text-muted">{p.sales_count.toLocaleString()}</td>
-                  <td className="px-5 py-3 text-right"><ProductRowActions id={p.id} slug={p.slug} active={p.is_active} /></td>
+                  <td className="px-5 py-3 text-right"><ProductRowActions id={p.id} slug={p.slug} active={p.is_active} canEdit={can(profile, "products.edit")} /></td>
                 </tr>
               );
             })}

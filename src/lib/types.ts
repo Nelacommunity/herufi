@@ -183,8 +183,10 @@ export interface Profile {
   full_name: string | null;
   avatar_url: string | null;
   phone: string | null;
-  role: "customer" | "admin";
+  role: "customer" | "admin" | "super_admin";
   status: "active" | "suspended";
+  /** Granted staff permissions (admins only; super admins implicitly have all). */
+  permissions: string[];
   marketing_opt_in: boolean;
   created_at: string;
 }

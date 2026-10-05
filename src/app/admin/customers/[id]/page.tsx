@@ -5,7 +5,8 @@ import { AdminPageHeader } from "@/components/admin/page-header";
 import { CustomerStatusToggle } from "@/components/admin/customer-status-toggle";
 import { OrderStatusBadge } from "@/components/account/order-status";
 import { createClient } from "@/lib/supabase/server";
-import { getUser } from "@/lib/auth";
+import { getUser, requirePermission } from "@/lib/auth";
+import { can, isSuperAdmin, ROLE_LABEL, type StaffRole } from "@/lib/permissions";
 import { formatDate, formatPrice } from "@/lib/utils";
 
 export const metadata = { title: "Customer" };
@@ -13,6 +14,7 @@ export const metadata = { title: "Customer" };
 export default async function AdminCustomerDetail({ params }: PageProps<"/admin/customers/[id]">) {
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
+  const { profile: me0 } = await requirePermission("customers.view");
   const supabase = await createClient();
   const [{ data: c }, { data: orders }, me] = await Promise.all([
     supabase.from("profiles").select("*").eq("user_id", id).maybeSingle(),
@@ -28,7 +30,7 @@ export default async function AdminCustomerDetail({ params }: PageProps<"/admin/
     <>
       <Link href="/admin/customers" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Customers</Link>
       <AdminPageHeader title={c.full_name ?? c.email ?? "Customer"} description={`${c.email} · joined ${formatDate(c.created_at, "long")}`}
-        actions={me?.id !== c.user_id ? <CustomerStatusToggle userId={c.user_id} status={c.status} /> : undefined} />
+        actions={me?.id !== c.user_id && can(me0, "customers.suspend") && (c.role === "customer" || isSuperAdmin(me0)) ? <CustomerStatusToggle userId={c.user_id} status={c.status} /> : undefined} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className={card}><p className="text-sm text-muted">Orders</p><p className="mt-2 text-2xl font-semibold">{orders?.length ?? 0}</p></div>
         <div className={card}><p className="text-sm text-muted">Total spent</p><p className="mt-2 text-2xl font-semibold tabular-nums">{formatPrice(spent)}</p></div>
@@ -57,7 +59,7 @@ export default async function AdminCustomerDetail({ params }: PageProps<"/admin/
         <dl className="mt-3 grid gap-2 sm:grid-cols-2">
           <div><dt className="text-muted">Phone</dt><dd>{c.phone ?? "—"}</dd></div>
           <div><dt className="text-muted">Marketing emails</dt><dd>{c.marketing_opt_in ? "Subscribed" : "Not subscribed"}</dd></div>
-          <div><dt className="text-muted">Role</dt><dd className="capitalize">{c.role}</dd></div>
+          <div><dt className="text-muted">Role</dt><dd>{ROLE_LABEL[c.role as StaffRole] ?? c.role}</dd></div>
         </dl>
       </section>
     </>

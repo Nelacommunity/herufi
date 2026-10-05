@@ -19,7 +19,7 @@ export default async function AccountLayout({ children }: LayoutProps<"/account"
       <p className="text-sm text-muted">{t.account.myAccount}</p>
       <h1 className="mt-1 text-4xl font-semibold tracking-tight sm:text-5xl">{first ? fmt(t.account.hello, { name: first }) : t.account.welcomeBack}</h1>
       <div className="mt-8 grid gap-8 lg:mt-12 lg:grid-cols-[220px_1fr] lg:gap-14">
-        <aside className="lg:sticky lg:top-24 lg:self-start"><AccountNav isAdmin={profile?.role === "admin"} /></aside>
+        <aside className="lg:sticky lg:top-24 lg:self-start"><AccountNav isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} /></aside>
         <div className="min-w-0">{children}</div>
       </div>
     </div>

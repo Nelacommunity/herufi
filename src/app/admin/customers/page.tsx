@@ -2,11 +2,14 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { createClient } from "@/lib/supabase/server";
+import { requirePermission } from "@/lib/auth";
+import { ROLE_LABEL } from "@/lib/permissions";
 import { cn, formatDate, formatPrice, initials } from "@/lib/utils";
 
 export const metadata = { title: "Customers" };
 
 export default async function AdminCustomers({ searchParams }: PageProps<"/admin/customers">) {
+  await requirePermission("customers.view");
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim().replace(/[%,()]/g, "").slice(0, 80) : "";
   const supabase = await createClient();
@@ -42,7 +45,7 @@ export default async function AdminCustomers({ searchParams }: PageProps<"/admin
                   <td className="px-5 py-3">
                     <Link href={`/admin/customers/${c.user_id}`} className="flex items-center gap-3">
                       <span className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-xs font-semibold">{initials(c.full_name, c.email)}</span>
-                      <span><span className="block font-medium hover:underline">{c.full_name ?? "—"}{c.role === "admin" && <span className="ml-2 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold uppercase">Admin</span>}</span><span className="text-xs text-muted">{c.email}</span></span>
+                      <span><span className="block font-medium hover:underline">{c.full_name ?? "—"}{c.role !== "customer" && <span className="ml-2 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold uppercase">{ROLE_LABEL[c.role as "admin" | "super_admin"]}</span>}</span><span className="text-xs text-muted">{c.email}</span></span>
                     </Link>
                   </td>
                   <td className="py-3 text-muted">{formatDate(c.created_at)}</td>

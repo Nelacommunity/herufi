@@ -6,11 +6,12 @@ export const metadata: Metadata = { title: { default: "Admin", template: "%s · 
 
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const { profile, user } = await requireAdmin();
+  const nav = { role: profile.role, status: profile.status, permissions: profile.permissions };
   return (
     <div className="flex min-h-dvh">
-      <AdminSidebar name={profile.full_name ?? user.email ?? "Admin"} />
+      <AdminSidebar name={profile.full_name ?? user.email ?? "Admin"} profile={nav} />
       <div className="min-w-0 flex-1">
-        <AdminTopbar />
+        <AdminTopbar profile={nav} />
         <main id="main" className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10 lg:py-10">{children}</main>
       </div>
     </div>

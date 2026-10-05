@@ -134,7 +134,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       supabase.from("wishlist_items").select("product_id").order("created_at", { ascending: false }),
       supabase.from("profiles").select("role").eq("user_id", u.id).maybeSingle(),
     ]);
-    setIsAdmin(profile.data?.role === "admin");
+    setIsAdmin(profile.data?.role === "admin" || profile.data?.role === "super_admin");
     if (!cart.error) setLines((cart.data ?? []).map(rowToLine).filter((l): l is CartLine => Boolean(l)));
     if (!wish.error) setWishlist((wish.data ?? []).map((w) => w.product_id as string));
   }, [supabase]);

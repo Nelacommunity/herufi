@@ -19,7 +19,7 @@ type Variant = { id?: string; name: string; value: string; additional_price: str
 
 const card = "rounded-2xl border border-border bg-surface p-5 sm:p-6";
 
-export function ProductForm({ product, categories }: { product: Product | null; categories: Category[] }) {
+export function ProductForm({ product, categories, canEdit = true, canDelete = false }: { product: Product | null; categories: Category[]; canEdit?: boolean; canDelete?: boolean }) {
   const router = useRouter();
   const [saving, startSave] = useTransition();
   const [deleting, startDelete] = useTransition();
@@ -253,9 +253,10 @@ export function ProductForm({ product, categories }: { product: Product | null; 
         </section>
 
         <div className="flex flex-col gap-2">
-          <Button type="submit" size="lg" loading={saving} disabled={!methods.length}>{product ? "Save changes" : "Create product"}</Button>
+          {canEdit && <Button type="submit" size="lg" loading={saving} disabled={!methods.length}>{product ? "Save changes" : "Create product"}</Button>}
+          {!canEdit && <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">You can view this product but not edit it.</p>}
           {product?.is_active && <Link href={`/products/${product.slug}`} target="_blank" className={buttonVariants({ variant: "secondary", size: "lg" })}>View in store</Link>}
-          {product && (
+          {product && canDelete && (
             <Button type="button" variant="ghost" className="text-sale" loading={deleting} onClick={() => {
               if (!window.confirm(`Delete “${product.name}”? This can't be undone. Past orders keep their line items.`)) return;
               startDelete(async () => { const r = await deleteProduct(product.id); if (r.ok) { toast.success(r.message); router.replace("/admin/products"); } else toast.error(r.error); });

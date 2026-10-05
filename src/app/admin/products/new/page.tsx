@@ -3,10 +3,12 @@ import { ArrowLeft } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { ProductForm } from "@/components/admin/product-form";
 import { createClient } from "@/lib/supabase/server";
+import { requirePermission } from "@/lib/auth";
 
 export const metadata = { title: "New product" };
 
 export default async function NewProductPage() {
+  await requirePermission("products.create");
   const supabase = await createClient();
   const { data } = await supabase.from("categories").select("*").order("sort_order");
   return (

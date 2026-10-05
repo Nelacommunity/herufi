@@ -4,6 +4,7 @@ import { AdminPageHeader } from "@/components/admin/page-header";
 import { OrderStatusBadge } from "@/components/account/order-status";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
+import { requirePermission } from "@/lib/auth";
 import { ORDER_STATUSES, ORDER_STATUS_LABEL } from "@/lib/constants";
 import type { OrderStatus } from "@/lib/types";
 import { cn, formatDate, formatPrice } from "@/lib/utils";
@@ -12,6 +13,7 @@ export const metadata = { title: "Orders" };
 const PER_PAGE = 25;
 
 export default async function AdminOrders({ searchParams }: PageProps<"/admin/orders">) {
+  await requirePermission("orders.view");
   const sp = await searchParams;
   const status = ORDER_STATUSES.includes(sp.status as OrderStatus) ? (sp.status as OrderStatus) : null;
   const q = typeof sp.q === "string" ? sp.q.trim().replace(/[%,()]/g, "").slice(0, 80) : "";
