@@ -1,10 +1,12 @@
 import type { Locale } from "@/i18n/config";
+import { POLICY_TOPICS } from "@/lib/policies";
 
 type Section = { id?: string; heading: string; body: string[] };
 type Content = { title: string; summary: string; sections: Section[] };
-export type HelpTopic = { slug: string } & Record<Locale, Content>;
+/** `kind: "policy"` topics are legal pages (shown under Policies, with a last-updated date). */
+export type HelpTopic = { slug: string; kind?: "help" | "policy"; updated?: string } & Record<Locale, Content>;
 
-export const HELP_TOPICS: HelpTopic[] = [
+const GUIDES: HelpTopic[] = [
   {
     slug: "shipping",
     en: {
@@ -53,30 +55,32 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     slug: "returns",
     en: {
-      title: "Returns & exchanges", summary: "14-day returns from anywhere in Tanzania.",
+      title: "Returns & exchanges", summary: "14-day returns from anywhere in Tanzania, free if something's wrong.",
       sections: [
         { heading: "Our policy", body: [
-          "You can return unused items in their original packaging within 14 days of delivery for a full refund.",
-          "For hygiene reasons, opened beauty products can only be returned if faulty.",
+          "You can return unused items in their original packaging within 14 days of delivery. Damaged, faulty or wrong items are refunded in full, including shipping, and you don't pay to send them back.",
+          "For hygiene reasons, opened beauty and personal-care products can only be returned if faulty. The full rules, including cancellations and late orders, are in our Refund policy.",
         ] },
         { heading: "How to return", body: [
-          "Contact us with your order number. Drop the item at our Dar es Salaam collection point (Mikocheni) or book a courier pickup in other towns.",
-          "Refunds go back to your M-Pesa, Tigo Pesa, Airtel Money or card within 5 business days of the item reaching us.",
+          "Contact us with your order number and we'll send you a return reference. Drop the item at our Dar es Salaam collection point (Mikocheni B) or book a courier pickup in other towns.",
+          "Refunds go back to your M-Pesa, Tigo Pesa, Airtel Money, HaloPesa or card within 5 business days of approving your return.",
         ] },
+        { heading: "Exchanges", body: ["Want a different size or colour? Return the item for a refund and place a new order, which is the fastest way to get the right one shipped from China. If the item was faulty or wrong, we'll send the replacement at no cost."] },
         { heading: "Damaged or wrong item?", body: ["Send us a photo within 48 hours of delivery and we'll send a replacement or refund you in full, including shipping."] },
       ],
     },
     sw: {
-      title: "Kurudisha na kubadilisha", summary: "Kurudisha ndani ya siku 14 ukiwa popote Tanzania.",
+      title: "Kurudisha na kubadilisha", summary: "Kurudisha ndani ya siku 14 ukiwa popote Tanzania, bure kama kuna tatizo.",
       sections: [
         { heading: "Sera yetu", body: [
-          "Unaweza kurudisha bidhaa ambazo hazijatumika zikiwa kwenye kifungashio chake ndani ya siku 14 tangu kufika, na kurudishiwa pesa zote.",
-          "Kwa sababu za usafi, bidhaa za urembo zilizofunguliwa zinarudishwa tu zikiwa na kasoro.",
+          "Unaweza kurudisha bidhaa ambazo hazijatumika zikiwa kwenye kifungashio chake ndani ya siku 14 tangu kufika. Bidhaa iliyoharibika, yenye kasoro au isiyo sahihi inarudishiwa pesa zote, pamoja na usafirishaji, na hulipi kuirudisha.",
+          "Kwa sababu za usafi, bidhaa za urembo na usafi wa mwili zilizofunguliwa zinarudishwa tu zikiwa na kasoro. Masharti kamili, pamoja na kughairi na oda zilizochelewa, yako kwenye Sera ya kurejesha pesa.",
         ] },
         { heading: "Jinsi ya kurudisha", body: [
-          "Wasiliana nasi ukiwa na namba ya oda. Leta bidhaa kwenye kituo chetu cha Dar es Salaam (Mikocheni) au omba msafirishaji aichukue ukiwa mikoani.",
-          "Pesa zinarudishwa kwa M-Pesa, Tigo Pesa, Airtel Money au kadi yako ndani ya siku 5 za kazi tangu bidhaa itufikie.",
+          "Wasiliana nasi ukiwa na namba ya oda nasi tutakutumia namba ya marejesho. Leta bidhaa kwenye kituo chetu cha Dar es Salaam (Mikocheni B) au omba msafirishaji aichukue ukiwa mikoani.",
+          "Pesa zinarudishwa kwa M-Pesa, Tigo Pesa, Airtel Money, HaloPesa au kadi yako ndani ya siku 5 za kazi tangu kuidhinisha marejesho.",
         ] },
+        { heading: "Kubadilisha", body: ["Unataka saizi au rangi nyingine? Rudisha bidhaa urudishiwe pesa kisha weka oda mpya, ambayo ndiyo njia ya haraka zaidi kupata sahihi kutoka China. Bidhaa ikiwa na kasoro au si sahihi, tutakutumia nyingine bila gharama."] },
         { heading: "Bidhaa imeharibika au si sahihi?", body: ["Tutumie picha ndani ya saa 48 tangu kufika nasi tutakutumia nyingine au kukurudishia pesa zote, pamoja na gharama za usafirishaji."] },
       ],
     },
@@ -140,42 +144,6 @@ export const HELP_TOPICS: HelpTopic[] = [
       ],
     },
   },
-  {
-    slug: "privacy",
-    en: {
-      title: "Privacy policy", summary: "How we collect, use and protect your data.",
-      sections: [
-        { heading: "What we collect", body: ["The details you give us when you create an account or order: name, email, phone number, delivery address and order history. We never store full card numbers or mobile money PINs."] },
-        { heading: "How we use it", body: ["To process and deliver your orders, clear customs on your behalf, provide support, personalise recommendations and, only if you opt in, send you offers."] },
-        { heading: "Your choices", body: ["Update your details and preferences any time in account settings, or contact us to request a copy or deletion of your data."] },
-      ],
-    },
-    sw: {
-      title: "Sera ya faragha", summary: "Jinsi tunavyokusanya, kutumia na kulinda taarifa zako.",
-      sections: [
-        { heading: "Tunachokusanya", body: ["Taarifa unazotupa unapofungua akaunti au kuagiza: jina, barua pepe, namba ya simu, anwani ya kufikishia na historia ya oda. Hatuhifadhi namba kamili za kadi wala PIN za pesa kwa simu."] },
-        { heading: "Tunavyozitumia", body: ["Kushughulikia na kufikisha oda zako, kutoa mizigo forodhani kwa niaba yako, kutoa huduma kwa wateja, kupendekeza bidhaa na, ukikubali tu, kukutumia ofa."] },
-        { heading: "Uchaguzi wako", body: ["Badilisha taarifa na mapendeleo yako wakati wowote kwenye mipangilio ya akaunti, au wasiliana nasi kuomba nakala au kufutwa kwa taarifa zako."] },
-      ],
-    },
-  },
-  {
-    slug: "terms",
-    en: {
-      title: "Terms of service", summary: "The terms that apply when you shop with us.",
-      sections: [
-        { heading: "Orders", body: ["Placing an order is an offer to buy. We confirm it once payment is received and we've reserved stock with the factory."] },
-        { heading: "Pricing", body: ["All prices are in Tanzanian shillings and include import duty. VAT (18%) and shipping are added at checkout."] },
-        { heading: "Demo notice", body: ["This store is a demonstration. No real payments are processed and no goods will be shipped."] },
-      ],
-    },
-    sw: {
-      title: "Masharti ya huduma", summary: "Masharti yanayotumika unaponunua kwetu.",
-      sections: [
-        { heading: "Oda", body: ["Kuweka oda ni ombi la kununua. Tunaithibitisha baada ya kupokea malipo na kuhifadhi bidhaa kiwandani."] },
-        { heading: "Bei", body: ["Bei zote ni kwa shilingi za Tanzania na zinajumuisha ushuru wa forodha. VAT (18%) na usafirishaji huongezwa wakati wa malipo."] },
-        { heading: "Tangazo la majaribio", body: ["Duka hili ni la majaribio. Hakuna malipo halisi yanayofanyika na hakuna bidhaa zitakazosafirishwa."] },
-      ],
-    },
-  },
 ];
+
+export const HELP_TOPICS: HelpTopic[] = [...GUIDES, ...POLICY_TOPICS];

@@ -406,8 +406,9 @@ const en = {
     endingIn: "{brand} ending in {last4}",
     qty: "Qty {n}",
     placeOrder: "Place order",
-    agree: "By placing your order you agree to our {terms} and {privacy}.",
+    agree: "By placing your order you agree to our {terms}, {refunds} and {privacy}.",
     termsLink: "terms",
+    refundsLink: "refund policy",
     privacyLink: "privacy policy",
     unavailable: "Some items in your bag are no longer available in that quantity.",
     updateBag: "Update your bag",
@@ -676,6 +677,11 @@ const en = {
     desc: "Answers about shipping from China, payments and returns, from a team based in Dar es Salaam.",
     crumb: "Help",
     topics: "Help topics",
+    policies: "Policies",
+    policiesDesc: "The rules that protect you when you shop with us.",
+    updated: "Last updated {date}",
+    related: "Related policies",
+    company: "Company details",
   },
 };
 

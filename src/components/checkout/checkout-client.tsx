@@ -152,8 +152,9 @@ export function CheckoutClient({ email: initialEmail, addresses, paymentMethods,
   const blocked = activeLines.some((l) => l.maxQuantity <= 0 || l.quantity > l.maxQuantity);
   const chosen = options.find((o) => o.method === delivery);
   const methodLabel = t.shipping.methods[delivery]?.label ?? delivery;
-  const [termsBefore, rest] = c.agree.split("{terms}");
-  const [termsAfter, privacyAfter] = (rest ?? "").split("{privacy}");
+  // "... {terms}, {refunds} and {privacy}." → text with three links.
+  const agree = c.agree.split(/(\{terms\}|\{refunds\}|\{privacy\})/);
+  const agreeLinks: Record<string, [string, string]> = { "{terms}": ["/help/terms", c.termsLink], "{refunds}": ["/help/refunds", c.refundsLink], "{privacy}": ["/help/privacy", c.privacyLink] };
 
   const summary = (
     <CheckoutSummary quote={quote} loading={loading} shippingLabel={`${t.summary.shipping} (${methodLabel})`} fallbackSubtotal={subtotal} coupon={coupon} onCoupon={(code) => { setCoupon(code); writeCoupon(code || null); }}>
@@ -337,7 +338,7 @@ export function CheckoutClient({ email: initialEmail, addresses, paymentMethods,
             <Lock className="h-4 w-4" /> {c.placeOrder}{quote ? ` · ${formatPrice(quote.total)}` : ""}
           </Button>
           <p className="mt-3 text-center text-xs text-muted">
-            {termsBefore}<Link href="/help/terms" className="underline">{c.termsLink}</Link>{termsAfter}<Link href="/help/privacy" className="underline">{c.privacyLink}</Link>{privacyAfter}
+            {agree.map((part, i) => agreeLinks[part] ? <Link key={i} href={agreeLinks[part][0]} className="underline">{agreeLinks[part][1]}</Link> : part)}
           </p>
         </StepCard>
       </div>

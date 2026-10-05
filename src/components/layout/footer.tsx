@@ -6,14 +6,16 @@ import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { getI18n } from "@/i18n/server";
 import type { Category } from "@/lib/types";
 import { categoryName } from "@/lib/utils";
+import { HELP_TOPICS } from "@/lib/help";
 
 export async function Footer({ categories }: { categories: Category[] }) {
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
   const f = t.footer;
+  const policy = (slug: string) => ({ href: `/help/${slug}`, label: HELP_TOPICS.find((x) => x.slug === slug)?.[locale].title ?? slug });
   const columns = [
     { title: f.shop, links: [{ href: "/products?sort=newest", label: f.newArrivals }, { href: "/products?sort=popular", label: f.bestSellers }, { href: "/products?deals=1", label: f.deals }, ...categories.slice(0, 5).map((c) => ({ href: `/categories/${c.slug}`, label: categoryName(t.categories, c) }))] },
     { title: f.help, links: [{ href: "/guides/buy-from-china-to-tanzania", label: t.footer.guide }, { href: "/help/shipping", label: f.shipping }, { href: "/help/returns", label: f.returns }, { href: "/help/faq", label: f.faq }, { href: "/help/contact", label: f.contact }, { href: "/account/orders", label: f.track }] },
-    { title: f.company, links: [{ href: "/help/about", label: f.about }, { href: "/help/privacy", label: f.privacy }, { href: "/help/terms", label: f.terms }] },
+    { title: f.company, links: [{ href: "/help/about", label: f.about }, policy("terms"), policy("refunds"), policy("privacy"), policy("payments"), policy("warranty"), policy("cookies")] },
   ];
   return (
     <footer className="mt-24 border-t border-border bg-surface">

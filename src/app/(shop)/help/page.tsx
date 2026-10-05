@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { HELP_TOPICS } from "@/lib/help";
+import { HELP_TOPICS, type HelpTopic } from "@/lib/help";
+import { fillBusiness } from "@/lib/business";
 import { getI18n } from "@/i18n/server";
 import { pageAlternates } from "@/lib/seo";
 
@@ -11,18 +12,24 @@ export async function generateMetadata() {
 
 export default async function HelpIndex() {
   const { t, locale } = await getI18n();
+  const grid = (topics: HelpTopic[]) => (
+    <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {topics.map((topic) => (
+        <Link key={topic.slug} href={`/help/${topic.slug}`} className="group flex flex-col justify-between rounded-2xl border border-border p-6 transition-all hover:border-border-strong hover:shadow-[var(--shadow-soft)]">
+          <div><h3 className="text-lg font-semibold">{fillBusiness(topic[locale].title, locale)}</h3><p className="mt-1 text-sm text-muted">{fillBusiness(topic[locale].summary, locale)}</p></div>
+          <ArrowUpRight className="mt-8 h-5 w-5 text-subtle transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground" />
+        </Link>
+      ))}
+    </div>
+  );
   return (
     <div className="container-page max-w-5xl pt-10 sm:pt-16">
       <h1 className="text-4xl font-semibold tracking-tight sm:text-6xl">{t.help.title}</h1>
       <p className="mt-4 max-w-xl text-lg text-muted">{t.help.desc}</p>
-      <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {HELP_TOPICS.map((topic) => (
-          <Link key={topic.slug} href={`/help/${topic.slug}`} className="group flex flex-col justify-between rounded-2xl border border-border p-6 transition-all hover:border-border-strong hover:shadow-[var(--shadow-soft)]">
-            <div><h2 className="text-lg font-semibold">{topic[locale].title}</h2><p className="mt-1 text-sm text-muted">{topic[locale].summary}</p></div>
-            <ArrowUpRight className="mt-8 h-5 w-5 text-subtle transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground" />
-          </Link>
-        ))}
-      </div>
+      {grid(HELP_TOPICS.filter((x) => x.kind !== "policy"))}
+      <h2 className="mt-16 text-2xl font-semibold tracking-tight">{t.help.policies}</h2>
+      <p className="mt-1 text-muted">{t.help.policiesDesc}</p>
+      {grid(HELP_TOPICS.filter((x) => x.kind === "policy"))}
     </div>
   );
 }

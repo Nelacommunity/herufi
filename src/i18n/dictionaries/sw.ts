@@ -406,8 +406,9 @@ const sw: Dictionary = {
     endingIn: "{brand} inayoishia {last4}",
     qty: "Idadi {n}",
     placeOrder: "Weka oda",
-    agree: "Kwa kuweka oda unakubali {terms} na {privacy} yetu.",
+    agree: "Kwa kuweka oda unakubali {terms}, {refunds} na {privacy} yetu.",
     termsLink: "masharti",
+    refundsLink: "sera ya kurejesha pesa",
     privacyLink: "sera ya faragha",
     unavailable: "Baadhi ya bidhaa kikapuni hazipatikani tena kwa idadi hiyo.",
     updateBag: "Rekebisha kikapu",
@@ -676,6 +677,11 @@ const sw: Dictionary = {
     desc: "Majibu kuhusu usafirishaji kutoka China, malipo na kurudisha bidhaa, kutoka kwa timu yetu ya Dar es Salaam.",
     crumb: "Msaada",
     topics: "Mada za msaada",
+    policies: "Sera",
+    policiesDesc: "Kanuni zinazokulinda unaponunua kwetu.",
+    updated: "Imesasishwa {date}",
+    related: "Sera zinazohusiana",
+    company: "Taarifa za kampuni",
   },
 };
 
