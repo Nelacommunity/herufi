@@ -133,16 +133,6 @@ export interface Address {
   is_default: boolean;
 }
 
-export interface PaymentMethod {
-  id: string;
-  brand: string;
-  last4: string;
-  exp_month: number;
-  exp_year: number;
-  cardholder_name: string | null;
-  is_default: boolean;
-}
-
 export interface OrderItem {
   id: string;
   product_id: string | null;

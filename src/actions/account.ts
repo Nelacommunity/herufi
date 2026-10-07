@@ -84,43 +84,6 @@ export async function setDefaultAddress(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-const cardSchema = z.object({
-  brand: z.string().min(2).max(20),
-  last4: z.string().regex(/^\d{4}$/),
-  exp_month: z.coerce.number().int().min(1).max(12),
-  exp_year: z.coerce.number().int().min(new Date().getFullYear()).max(2100),
-  cardholder_name: z.string().trim().min(2).max(120),
-});
-
-/** Stores display metadata only. The full card number never leaves the browser. */
-export async function addPaymentMethod(input: z.infer<typeof cardSchema>): Promise<ActionResult> {
-  const { user, t, supabase } = await authed();
-  const parsed = cardSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: t.errors.checkFields };
-  const { count } = await supabase.from("payment_methods").select("id", { count: "exact", head: true });
-  const { error } = await supabase.from("payment_methods").insert({ ...parsed.data, user_id: user.id, is_default: !count });
-  if (error) return { ok: false, error: t.errors.generic };
-  revalidatePath("/account/payment-methods");
-  return { ok: true, message: t.account.payments.saved };
-}
-
-export async function deletePaymentMethod(id: string): Promise<ActionResult> {
-  const { t, supabase } = await authed();
-  const { error } = await supabase.from("payment_methods").delete().eq("id", id);
-  if (error) return { ok: false, error: t.errors.generic };
-  revalidatePath("/account/payment-methods");
-  return { ok: true, message: t.account.payments.removed };
-}
-
-export async function setDefaultPaymentMethod(id: string): Promise<ActionResult> {
-  const { user, t, supabase } = await authed();
-  await supabase.from("payment_methods").update({ is_default: false }).eq("user_id", user.id);
-  const { error } = await supabase.from("payment_methods").update({ is_default: true }).eq("id", id);
-  if (error) return { ok: false, error: t.errors.generic };
-  revalidatePath("/account/payment-methods");
-  return { ok: true };
-}
-
 export async function clearRecentlyViewed(): Promise<ActionResult> {
   const { user, supabase } = await authed();
   await supabase.from("product_views").delete().eq("user_id", user.id);

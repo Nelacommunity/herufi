@@ -1,20 +1,20 @@
 /**
  * Business details shown on the policy pages (refunds, terms, privacy…) and the contact page.
- * Fill in the registration fields once the company is registered; empty fields are simply left out.
+ * Set these in .env.local (NEXT_PUBLIC_BUSINESS_* / NEXT_PUBLIC_SUPPORT_*); empty registration fields are simply left out.
  */
 export const BUSINESS = {
   brand: "Herufi",
   /** Registered company name as on the BRELA certificate, e.g. "Herufi Trading Company Limited". */
-  legalName: "",
+  legalName: process.env.NEXT_PUBLIC_BUSINESS_LEGAL_NAME ?? "",
   /** BRELA registration (incorporation) number. */
-  registrationNumber: "",
+  registrationNumber: process.env.NEXT_PUBLIC_BUSINESS_REG_NUMBER ?? "",
   /** TRA Taxpayer Identification Number. */
-  tin: "",
+  tin: process.env.NEXT_PUBLIC_BUSINESS_TIN ?? "",
   /** TRA VAT registration number (VRN), if VAT-registered. */
-  vrn: "",
-  address: "Mikocheni B, Dar es Salaam, Tanzania",
-  email: "hello@herufi.co.tz",
-  phone: "+255 754 000 123",
+  vrn: process.env.NEXT_PUBLIC_BUSINESS_VRN ?? "",
+  address: process.env.NEXT_PUBLIC_BUSINESS_ADDRESS ?? "Mikocheni B, Dar es Salaam, Tanzania",
+  email: process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "hello@herufi.co.tz",
+  phone: process.env.NEXT_PUBLIC_SUPPORT_PHONE ?? "+255 754 000 123",
   hours: { en: "every day, 8am to 8pm EAT", sw: "kila siku, saa 2 asubuhi hadi saa 2 usiku" },
 } as const;
 

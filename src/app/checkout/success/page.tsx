@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { CheckCircle2, Package, Truck } from "lucide-react";
+import { CheckCircle2, Loader2, Package, Truck, XCircle } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { getUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { AutoRefresh } from "@/components/checkout/auto-refresh";
 import { getI18n } from "@/i18n/server";
 import { fmt } from "@/i18n/config";
 import type { Order } from "@/lib/types";
@@ -25,18 +27,40 @@ export default async function SuccessPage({ searchParams }: PageProps<"/checkout
     const { data } = await supabase.from("orders").select("*, items:order_items(*)").eq("order_number", orderNumber).maybeSingle();
     order = data as Order | null;
   }
+  // Payment state is not sensitive, so guests (no RLS access) can see it too. Only the webhook ever sets "paid".
+  let paymentStatus: "pending" | "paid" | "failed" = "paid";
+  if (orderNumber) {
+    const { data } = await createAdminClient().from("orders").select("payment_status").eq("order_number", orderNumber).maybeSingle();
+    paymentStatus = data?.payment_status === "pending" ? "pending" : data?.payment_status === "failed" ? "failed" : "paid";
+  }
   const delivery = order ? t.checkout.deliveryMethods[order.delivery_method] : undefined;
   const [bodyBefore, bodyAfter] = s.body.split("{number}");
 
   return (
     <div className="container-page max-w-3xl py-12 sm:py-20">
-      <div className="text-center animate-fade-up">
-        <CheckCircle2 className="mx-auto h-16 w-16 stroke-[1.25] text-success" />
-        <h1 className="mt-6 font-display text-5xl tracking-tight sm:text-6xl">{s.title}</h1>
-        <p className="mt-4 text-lg text-muted">{bodyBefore}{orderNumber && <strong className="font-semibold text-foreground">{orderNumber}</strong>}{bodyAfter}</p>
-      </div>
+      {paymentStatus === "paid" ? (
+        <div className="text-center animate-fade-up">
+          <CheckCircle2 className="mx-auto h-16 w-16 stroke-[1.25] text-success" />
+          <h1 className="mt-6 font-display text-5xl tracking-tight sm:text-6xl">{s.title}</h1>
+          <p className="mt-4 text-lg text-muted">{bodyBefore}{orderNumber && <strong className="font-semibold text-foreground">{orderNumber}</strong>}{bodyAfter}</p>
+        </div>
+      ) : paymentStatus === "pending" ? (
+        <div className="text-center animate-fade-up" role="status">
+          <AutoRefresh />
+          <Loader2 className="mx-auto h-16 w-16 animate-spin stroke-[1.25] text-muted" />
+          <h1 className="mt-6 font-display text-4xl tracking-tight sm:text-5xl">{s.pendingTitle}</h1>
+          <p className="mt-4 text-lg text-muted">{fmt(s.pendingBody, { number: orderNumber ?? "" })}</p>
+        </div>
+      ) : (
+        <div className="text-center animate-fade-up">
+          <XCircle className="mx-auto h-16 w-16 stroke-[1.25] text-sale" />
+          <h1 className="mt-6 font-display text-4xl tracking-tight sm:text-5xl">{s.failedTitle}</h1>
+          <p className="mt-4 text-lg text-muted">{fmt(s.failedBody, { number: orderNumber ?? "" })}</p>
+          <Link href="/cart" className={buttonVariants({ size: "lg", className: "mt-8" })}>{s.tryAgain}</Link>
+        </div>
+      )}
 
-      {order && (
+      {order && paymentStatus === "paid" && (
         <div className="mt-12 rounded-[1.5rem] border border-border p-6 animate-fade-up sm:p-8" style={{ animationDelay: "120ms" }}>
           <div className="grid gap-6 border-b border-border pb-6 text-sm sm:grid-cols-2">
             <div className="flex gap-3"><Truck className="h-5 w-5 shrink-0" /><div><p className="font-medium">{fmt(s.deliveryLabel, { method: delivery?.label ?? "" })}</p><p className="text-muted">{delivery?.eta}</p></div></div>

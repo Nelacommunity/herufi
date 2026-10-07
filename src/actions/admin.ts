@@ -9,6 +9,7 @@ import { CATALOG_TAG } from "@/lib/supabase/public";
 import { ORDER_STATUSES } from "@/lib/constants";
 import type { ActionResult } from "@/lib/types";
 import { slugify } from "@/lib/utils";
+import { orderSms, sendSms } from "@/lib/sms";
 
 /**
  * Every admin action re-checks the caller's permission server-side; Row Level Security (has_permission())
@@ -217,8 +218,12 @@ export async function updateOrderStatus(id: string, status: string): Promise<Act
     const supabase = await admin("orders.update");
     const update: Record<string, string> = { status };
     if (status === "cancelled") update.payment_status = "refunded";
-    const { error } = await supabase.from("orders").update(update).eq("id", id);
+    const { data: before } = await supabase.from("orders").select("status").eq("id", id).maybeSingle();
+    const { data: order, error } = await supabase.from("orders").update(update).eq("id", id).select("order_number, shipping_address").maybeSingle();
     if (error) return fail(error, "We couldn't update this order.");
+    // Notify the customer only when the status actually changed.
+    const text = before?.status !== status ? orderSms[status as keyof typeof orderSms] : undefined;
+    if (order && text) await sendSms((order.shipping_address as { phone?: string }).phone, text(order.order_number), order.order_number);
     revalidatePath("/admin/orders", "layout");
     revalidatePath("/admin");
     return { ok: true, message: `Order marked as ${status}` };

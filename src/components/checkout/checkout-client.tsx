@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, CreditCard, Lock, ShoppingBag, Smartphone } from "lucide-react";
+import { Check, ChevronDown, CreditCard, Loader2, Lock, ShoppingBag, Smartphone } from "lucide-react";
 import { useStore } from "@/providers/store-provider";
-import { placeOrder } from "@/actions/checkout";
+import { getPaymentStatus, placeOrder, startPayment } from "@/actions/checkout";
 import { CheckoutSummary } from "@/components/checkout/checkout-summary";
 import { readCoupon, useDeliveryPreference, useQuote, writeCoupon } from "@/components/checkout/use-quote";
 import { ShippingOptions } from "@/components/shipping/shipping-options";
@@ -16,8 +16,8 @@ import { Checkbox, Field, Input, Select } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MOBILE_MONEY, TZ_REGIONS } from "@/lib/constants";
-import { cardBrand, isTzMobile, luhn, type AddressInput } from "@/lib/validation";
-import type { Address, PaymentMethod } from "@/lib/types";
+import { isTzMobile, type AddressInput } from "@/lib/validation";
+import type { Address } from "@/lib/types";
 import { cn, formatPrice } from "@/lib/utils";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/config";
@@ -27,8 +27,8 @@ type PayKind = "mobile" | "card";
 
 const emptyAddress: AddressInput = { full_name: "", line1: "", line2: "", city: "", region: "Dar es Salaam", postal_code: "", country: "TZ", phone: "" };
 
-export function CheckoutClient({ email: initialEmail, addresses, paymentMethods, signedIn }: {
-  email: string | null; addresses: Address[]; paymentMethods: PaymentMethod[]; signedIn: boolean;
+export function CheckoutClient({ email: initialEmail, addresses, signedIn }: {
+  email: string | null; addresses: Address[]; signedIn: boolean;
 }) {
   const router = useRouter();
   const { t } = useI18n();
@@ -45,16 +45,15 @@ export function CheckoutClient({ email: initialEmail, addresses, paymentMethods,
   const [payKind, setPayKind] = useState<PayKind>("mobile");
   const [provider, setProvider] = useState<(typeof MOBILE_MONEY)[number]>("M-Pesa");
   const [mobile, setMobile] = useState("");
-  const defaultCard = paymentMethods.find((p) => p.is_default) ?? paymentMethods[0];
-  const [cardId, setCardId] = useState<string | "new">(defaultCard?.id ?? "new");
-  const [card, setCard] = useState({ number: "", exp: "", cvc: "", name: "" });
-  const [saveCard, setSaveCard] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   // Content depending on the coupon only renders after the store is ready (client-side), so this can't mismatch.
   const [coupon, setCoupon] = useState(() => (typeof window === "undefined" ? "" : readCoupon()));
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [placing, startPlacing] = useTransition();
   const [summaryOpen, setSummaryOpen] = useState(false);
+  // Set once the order exists; payment can then be retried without placing a second order.
+  const [pending, setPending] = useState<{ orderNumber: string; waiting: boolean; timedOut: boolean } | null>(null);
+  const attempt = useRef(0);
 
   // Options don't depend on the chosen method, so switching method re-prices instantly (see quoteFor).
   const { quote: baseQuote, loading } = useQuote(activeLines, "standard", coupon);
@@ -71,17 +70,11 @@ export function CheckoutClient({ email: initialEmail, addresses, paymentMethods,
     return address;
   }, [addressId, address, addresses]);
 
-  const payment = useMemo(() => {
-    if (payKind === "mobile") {
-      return { brand: provider, last4: mobile.replace(/\D/g, "").slice(-4), exp_month: 12, exp_year: 2099, name: shippingAddress?.full_name ?? "" };
-    }
-    if (cardId !== "new") {
-      const p = paymentMethods.find((x) => x.id === cardId);
-      return p ? { brand: p.brand, last4: p.last4, exp_month: p.exp_month, exp_year: p.exp_year, name: p.cardholder_name ?? "" } : null;
-    }
-    const [m, y] = card.exp.split("/").map((s) => Number(s.trim()));
-    return { brand: cardBrand(card.number), last4: card.number.replace(/\D/g, "").slice(-4), exp_month: m || 0, exp_year: y ? 2000 + (y % 100) : 0, name: card.name };
-  }, [payKind, provider, mobile, cardId, card, paymentMethods, shippingAddress]);
+  // Only a display label is stored on the order; card details are entered on Snippe's hosted page, never here.
+  const payment = useMemo(() => payKind === "mobile"
+    ? { brand: provider, last4: mobile.replace(/\D/g, "").slice(-4), exp_month: 12, exp_year: 2099, name: shippingAddress?.full_name ?? "" }
+    : { brand: "Card", last4: "", exp_month: 12, exp_year: 2099, name: shippingAddress?.full_name ?? "" },
+  [payKind, provider, mobile, shippingAddress]);
 
   function complete(s: Step) {
     setDone((d) => new Set(d).add(s));
@@ -110,37 +103,69 @@ export function CheckoutClient({ email: initialEmail, addresses, paymentMethods,
     const e: Record<string, string> = {};
     if (payKind === "mobile") {
       if (!isTzMobile(mobile)) e.mobile = c.errors.mobile;
-    } else if (cardId === "new") {
-      if (!luhn(card.number)) e.number = c.errors.cardNumber;
-      const [m, y] = card.exp.split("/").map((s) => Number(s.trim()));
-      if (!m || m > 12 || !y || new Date(2000 + (y % 100), m) <= new Date()) e.exp = c.errors.expiry;
-      if (!/^\d{3,4}$/.test(card.cvc)) e.cvc = c.errors.cvc;
-      if (card.name.trim().length < 2) e.name = c.errors.cardName;
+    } else if (!isTzMobile(shippingAddress?.phone ?? "")) {
+      e.phone = c.errors.phone;
     }
     if (Object.keys(e).length) return setErrors(e);
     complete(4);
+  }
+
+  async function pay(orderNumber: string) {
+    attempt.current += 1;
+    const attemptId = `${Date.now().toString(36)}${attempt.current}`.slice(-10);
+    const res = await startPayment({ orderNumber, email: email.trim(), kind: payKind, phone: payKind === "mobile" ? mobile : (shippingAddress?.phone ?? ""), attemptId });
+    if (!res.ok) { setPending((p) => p && { ...p, waiting: false }); setSubmitError(res.error); return; }
+    if (payKind === "card") {
+      if (!res.data?.paymentUrl) { setSubmitError(c.errors.generic); return; }
+      window.location.assign(res.data.paymentUrl);
+      return;
+    }
+    setPending({ orderNumber, waiting: true, timedOut: false });
   }
 
   function submit() {
     if (!shippingAddress || !payment) return;
     setSubmitError(null);
     startPlacing(async () => {
-      const res = await placeOrder({
-        items: activeLines.map((l) => ({ product_id: l.productId, variant_id: l.variantId, quantity: l.quantity })),
-        email: email.trim(),
-        address: shippingAddress,
-        delivery,
-        payment,
-        coupon: quote?.coupon_code ?? undefined,
-        saveAddress: signedIn && addressId === "new" && saveAddress,
-        saveCard: signedIn && payKind === "card" && cardId === "new" && saveCard,
-      });
-      if (!res.ok) { setSubmitError(res.error); return; }
-      writeCoupon(null);
-      clearCart();
-      router.replace(`/checkout/success?order=${encodeURIComponent(res.data!.orderNumber)}`);
+      // Retrying after a failed payment start reuses the order that already exists.
+      let orderNumber = pending?.orderNumber;
+      if (!orderNumber) {
+        const res = await placeOrder({
+          items: activeLines.map((l) => ({ product_id: l.productId, variant_id: l.variantId, quantity: l.quantity })),
+          email: email.trim(),
+          address: shippingAddress,
+          delivery,
+          payment,
+          coupon: quote?.coupon_code ?? undefined,
+          saveAddress: signedIn && addressId === "new" && saveAddress,
+        });
+        if (!res.ok) { setSubmitError(res.error); return; }
+        orderNumber = res.data!.orderNumber;
+        writeCoupon(null);
+        clearCart();
+        setPending({ orderNumber, waiting: false, timedOut: false });
+      }
+      await pay(orderNumber);
     });
   }
+
+  // Mobile money: poll our own order row (updated by the signed webhook) until it settles.
+  const waitingFor = pending?.waiting ? pending.orderNumber : null;
+  useEffect(() => {
+    if (!waitingFor) return;
+    let stopped = false;
+    const started = Date.now();
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      const status = await getPaymentStatus(waitingFor, email);
+      if (stopped) return;
+      if (status === "paid" || status === "failed") { router.replace(`/checkout/success?order=${encodeURIComponent(waitingFor)}`); return; }
+      if (Date.now() - started > 120_000) { setPending((p) => p && { ...p, waiting: false, timedOut: true }); return; }
+      timer = setTimeout(tick, 3000);
+    };
+    timer = setTimeout(tick, 3000);
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [waitingFor, email, router]);
 
   if (!ready) {
     return <div className="grid gap-10 lg:grid-cols-[1fr_420px]"><div className="space-y-4">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div><Skeleton className="h-96 rounded-[1.5rem]" /></div>;
@@ -251,7 +276,7 @@ export function CheckoutClient({ email: initialEmail, addresses, paymentMethods,
         </StepCard>
 
         <StepCard id={4} step={step} done={done} title={c.steps.payment} editLabel={t.common.edit} onEdit={() => setStep(4)}
-          summary={payment && <p className="flex items-center gap-2">{payKind === "mobile" ? <Smartphone className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />} {fmt(c.endingIn, { brand: payment.brand, last4: payment.last4 })}</p>}>
+          summary={payment && <p className="flex items-center gap-2">{payKind === "mobile" ? <Smartphone className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />} {payKind === "mobile" ? fmt(c.endingIn, { brand: payment.brand, last4: payment.last4 }) : c.card}</p>}>
           <p className="mb-5 flex items-center gap-2 rounded-xl bg-accent-soft px-4 py-3 text-sm text-accent">
             <Lock className="h-4 w-4 shrink-0" /> {c.demoNote}
           </p>
@@ -283,41 +308,10 @@ export function CheckoutClient({ email: initialEmail, addresses, paymentMethods,
               </Field>
             </div>
           ) : (
-            <>
-              {paymentMethods.length > 0 && (
-                <div className="mb-6 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={c.savedCards}>
-                  {paymentMethods.map((p) => (
-                    <OptionCard key={p.id} selected={cardId === p.id} onSelect={() => setCardId(p.id)}>
-                      <p className="font-medium">{p.brand} •••• {p.last4}</p>
-                      <p className="text-sm text-muted">{fmt(c.expires, { date: `${String(p.exp_month).padStart(2, "0")}/${String(p.exp_year).slice(-2)}` })}</p>
-                    </OptionCard>
-                  ))}
-                  <OptionCard selected={cardId === "new"} onSelect={() => setCardId("new")}><p className="font-medium">{c.useNewCard}</p></OptionCard>
-                </div>
-              )}
-              {cardId === "new" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <Field className="col-span-2" label={c.cardNumber} htmlFor="cc-number" error={errors.number}>
-                    <div className="relative">
-                      <Input id="cc-number" inputMode="numeric" autoComplete="cc-number" placeholder="4242 4242 4242 4242" value={card.number} aria-invalid={Boolean(errors.number)}
-                        onChange={(e) => setCard({ ...card, number: e.target.value.replace(/\D/g, "").slice(0, 19).replace(/(.{4})/g, "$1 ").trim() })} />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted">{card.number ? cardBrand(card.number) : ""}</span>
-                    </div>
-                  </Field>
-                  <Field label={c.expiry} htmlFor="cc-exp" error={errors.exp}>
-                    <Input id="cc-exp" inputMode="numeric" autoComplete="cc-exp" placeholder="MM / YY" value={card.exp} aria-invalid={Boolean(errors.exp)}
-                      onChange={(e) => { const d = e.target.value.replace(/\D/g, "").slice(0, 4); setCard({ ...card, exp: d.length > 2 ? `${d.slice(0, 2)} / ${d.slice(2)}` : d }); }} />
-                  </Field>
-                  <Field label={c.cvc} htmlFor="cc-cvc" error={errors.cvc}>
-                    <Input id="cc-cvc" inputMode="numeric" autoComplete="cc-csc" placeholder="CVC" value={card.cvc} aria-invalid={Boolean(errors.cvc)} onChange={(e) => setCard({ ...card, cvc: e.target.value.replace(/\D/g, "").slice(0, 4) })} />
-                  </Field>
-                  <Field className="col-span-2" label={c.nameOnCard} htmlFor="cc-name" error={errors.name}>
-                    <Input id="cc-name" autoComplete="cc-name" value={card.name} aria-invalid={Boolean(errors.name)} onChange={(e) => setCard({ ...card, name: e.target.value })} />
-                  </Field>
-                  {signedIn && <Checkbox className="col-span-2" checked={saveCard} onChange={(e) => setSaveCard(e.target.checked)} label={c.saveCard} />}
-                </div>
-              )}
-            </>
+            <div className="space-y-4">
+              <p className="flex items-start gap-2 rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted"><CreditCard className="mt-0.5 h-4 w-4 shrink-0" /> {c.payment.cardNote}</p>
+              {errors.phone && <p className="text-sm text-sale" role="alert">{errors.phone}</p>}
+            </div>
           )}
           <Button size="lg" className="mt-6 w-full sm:w-auto" onClick={validatePayment}>{c.reviewOrder}</Button>
         </StepCard>
@@ -334,8 +328,20 @@ export function CheckoutClient({ email: initialEmail, addresses, paymentMethods,
           </ul>
           {blocked && <p className="mt-4 text-sm text-sale">{c.unavailable} <Link href="/cart" className="underline">{c.updateBag}</Link>.</p>}
           {submitError && <p className="mt-4 rounded-xl bg-sale-soft px-4 py-3 text-sm text-sale" role="alert">{submitError}</p>}
-          <Button size="lg" className="mt-6 h-14 w-full text-base" loading={placing} disabled={blocked || !quote || loading || !quote.shipping_available} onClick={submit}>
-            <Lock className="h-4 w-4" /> {c.placeOrder}{quote ? ` · ${formatPrice(quote.total)}` : ""}
+          {pending?.waiting && (
+            <div className="mt-4 flex items-start gap-3 rounded-xl bg-accent-soft px-4 py-4 text-sm text-accent" role="status">
+              <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
+              <div><p className="font-semibold">{c.payment.waitingTitle}</p><p className="mt-1">{fmt(c.payment.waitingBody, { phone: mobile })}</p></div>
+            </div>
+          )}
+          {pending?.timedOut && (
+            <p className="mt-4 rounded-xl bg-surface-2 px-4 py-3 text-sm" role="status">
+              {c.payment.timeout}{" "}
+              <Link href={`/checkout/success?order=${encodeURIComponent(pending.orderNumber)}`} className="font-medium underline underline-offset-4">{c.payment.checkStatus}</Link>
+            </p>
+          )}
+          <Button size="lg" className="mt-6 h-14 w-full text-base" loading={placing || Boolean(pending?.waiting)} disabled={blocked || !quote || loading || !quote.shipping_available} onClick={submit}>
+            <Lock className="h-4 w-4" /> {pending ? c.payment.retry : c.placeOrder}{quote ? ` · ${formatPrice(quote.total)}` : ""}
           </Button>
           <p className="mt-3 text-center text-xs text-muted">
             {agree.map((part, i) => agreeLinks[part] ? <Link key={i} href={agreeLinks[part][0]} className="underline">{agreeLinks[part][1]}</Link> : part)}
