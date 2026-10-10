@@ -13,6 +13,18 @@ export const PRODUCT_SELECT = `${SUMMARY_SELECT}, description, details, specific
 const NEW_DAYS = 21;
 const bySort = (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order;
 
+/**
+ * Variant photos live in a column added by 0011_variant_images.sql. They're fetched separately so the rest of the
+ * catalog keeps working on databases that haven't run that migration yet (the query then just returns nothing).
+ */
+export async function withVariantImages<T extends { id: string; variants: ProductVariant[] }>(db: SupabaseClient, product: T): Promise<T> {
+  if (!product.variants.length) return product;
+  const { data, error } = await db.from("product_variants").select("id, image_url").eq("product_id", product.id);
+  if (error || !data) return product;
+  const map = new Map((data as { id: string; image_url: string | null }[]).map((v) => [v.id, v.image_url]));
+  return { ...product, variants: product.variants.map((v) => ({ ...v, image_url: map.get(v.id) ?? null })) };
+}
+
 export function toSummary(row: any): ProductSummary {
   return {
     id: row.id,

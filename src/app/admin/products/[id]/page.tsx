@@ -7,7 +7,7 @@ import { QuestionAnswerList } from "@/components/admin/question-answer-list";
 import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { PRODUCT_SELECT, toProduct } from "@/lib/queries/shared";
+import { PRODUCT_SELECT, toProduct, withVariantImages } from "@/lib/queries/shared";
 
 export const metadata = { title: "Edit product" };
 
@@ -22,7 +22,7 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
     supabase.from("product_questions").select("id, author_name, question, answer, answered_at, created_at").eq("product_id", id).order("created_at", { ascending: false }),
   ]);
   if (!data) notFound();
-  const product = toProduct(data);
+  const product = await withVariantImages(supabase, toProduct(data));
   return (
     <>
       <Link href="/admin/products" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Products</Link>

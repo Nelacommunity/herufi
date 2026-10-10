@@ -10,6 +10,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select } from "@/components/ui/input";
 import { cn, formatDate, formatPrice } from "@/lib/utils";
+import { BulkOnly, BulkSelectProvider, SelectAllCheckbox, SelectCheckbox } from "@/components/admin/bulk-select";
 
 export type CouponStats = { id: string; orders: number; revenue: number; discount_given: number; last_order_at: string | null; assigned_admin_name: string | null };
 export type Coupon = {
@@ -60,16 +61,18 @@ export function CouponManager({ coupons, canManage, isSuper, me, staff }: {
         </section>
       )}
 
+      <BulkSelectProvider enabled={isSuper} kind="coupons">
       <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
         <table className="w-full min-w-[900px] text-sm">
           <thead className="border-b border-border text-left text-xs uppercase tracking-wider text-muted">
-            <tr><th className="px-5 py-3 font-medium">Code</th><th className="py-3 font-medium">Assigned to</th><th className="py-3 font-medium">Discount</th><th className="py-3 font-medium">Orders</th><th className="py-3 font-medium">Revenue</th><th className="py-3 font-medium">Expires</th><th className="py-3 font-medium">Status</th><th className="px-5 py-3" /></tr>
+            <tr><BulkOnly><th className="w-10 pl-5 py-3"><SelectAllCheckbox ids={coupons.map((c) => c.id)} /></th></BulkOnly><th className="px-5 py-3 font-medium">Code</th><th className="py-3 font-medium">Assigned to</th><th className="py-3 font-medium">Discount</th><th className="py-3 font-medium">Orders</th><th className="py-3 font-medium">Revenue</th><th className="py-3 font-medium">Expires</th><th className="py-3 font-medium">Status</th><th className="px-5 py-3" /></tr>
           </thead>
           <tbody>
             {coupons.map((c) => {
               const s = couponState(c);
               return (
                 <tr key={c.id} className="border-b border-border last:border-0">
+                  <BulkOnly><td className="w-10 pl-5 py-3"><SelectCheckbox id={c.id} label={c.code} /></td></BulkOnly>
                   <td className="px-5 py-3"><p className="font-mono font-semibold">{c.code}</p><p className="text-xs text-muted">{c.description}</p></td>
                   <td className="py-3">{c.assigned_admin_id === me.user_id ? <span className="font-medium">You</span> : c.stats?.assigned_admin_name ?? <span className="text-muted">Unassigned</span>}</td>
                   <td className="py-3">{c.type === "percentage" ? `${Number(c.value)}% off` : `${formatPrice(c.value)} off`}{Number(c.min_subtotal) > 0 && <span className="block text-xs text-muted">Min. {formatPrice(c.min_subtotal)}</span>}</td>
@@ -90,10 +93,11 @@ export function CouponManager({ coupons, canManage, isSuper, me, staff }: {
                 </tr>
               );
             })}
-            {!coupons.length && <tr><td colSpan={8} className="px-5 py-16 text-center text-muted">{canManage ? "No discount codes yet." : "No discount codes are assigned to you yet."}</td></tr>}
+            {!coupons.length && <tr><td colSpan={9} className="px-5 py-16 text-center text-muted">{canManage ? "No discount codes yet." : "No discount codes are assigned to you yet."}</td></tr>}
           </tbody>
         </table>
       </div>
+      </BulkSelectProvider>
       <Sheet open={editing !== null} onClose={() => setEditing(null)} title={editing === "new" ? "Create discount" : "Edit discount"}>
         {editing !== null && <CouponForm coupon={editing === "new" ? null : editing} isSuper={isSuper} me={me} staff={staff} onDone={() => { setEditing(null); router.refresh(); }} />}
       </Sheet>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useVariantImage } from "@/components/product/variant-image";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, Expand } from "lucide-react";
 import { useI18n } from "@/i18n/client";
@@ -26,6 +27,13 @@ export function ProductGallery({ images, name, badge }: { images: ProductImage[]
 
   const go = useCallback((i: number) => { setIndex(Math.max(0, Math.min(count - 1, i))); setZoom(null); }, [count]);
   const swipe = useSwipe({ count, index, onChange: go });
+
+  // Jump to a variant's photo when the shopper picks that variant (the cover stays first in the list).
+  const { subscribe } = useVariantImage();
+  useEffect(() => subscribe((url) => {
+    const i = images.findIndex((img) => img.image_url === url);
+    if (i >= 0) go(i);
+  }), [subscribe, images, go]);
 
   // Keep the active thumbnail in view.
   useEffect(() => {

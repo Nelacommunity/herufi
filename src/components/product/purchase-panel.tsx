@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useVariantImage } from "@/components/product/variant-image";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,6 +25,7 @@ export function PurchasePanel({ product, freeSeaShipping = null }: { product: Pr
   const { t } = useI18n();
   const p = t.product;
   const router = useRouter();
+  const { show: showImage } = useVariantImage();
   const optionName = product.variants[0]?.name;
   const optionLabel = optionName ? (t.optionNames[optionName] ?? optionName) : "";
   const [variantId, setVariantId] = useState<string | null>(product.variants.length === 1 ? product.variants[0].id : null);
@@ -109,13 +111,17 @@ export function PurchasePanel({ product, freeSeaShipping = null }: { product: Pr
               const soldOut = v.stock_quantity <= 0;
               const swatch = SWATCHES[v.value.toLowerCase()];
               return (
-                <button key={v.id} role="radio" aria-checked={selected} disabled={soldOut} onClick={() => { setVariantId(v.id); setError(null); }}
+                <button key={v.id} role="radio" aria-checked={selected} disabled={soldOut} onClick={() => { setVariantId(v.id); setError(null); if (v.image_url) showImage(v.image_url); }}
                   className={cn(
                     "relative inline-flex h-12 min-w-12 items-center justify-center gap-2 rounded-full border px-4 text-sm font-medium transition-all duration-200",
                     selected ? "border-foreground bg-foreground text-background" : "border-border-strong hover:border-foreground",
                     soldOut && "cursor-not-allowed border-dashed text-subtle line-through hover:border-border-strong",
                   )}>
-                  {isColor && swatch && <span className="h-5 w-5 rounded-full border border-black/10" style={{ background: swatch }} aria-hidden />}
+                  {v.image_url ? (
+                    <span className="relative -ml-2 h-8 w-8 shrink-0 overflow-hidden rounded-full border border-black/10 bg-surface-2" aria-hidden>
+                      <Image src={v.image_url} alt="" fill sizes="32px" className="object-cover" />
+                    </span>
+                  ) : isColor && swatch && <span className="h-5 w-5 rounded-full border border-black/10" style={{ background: swatch }} aria-hidden />}
                   {v.value}
                   {v.additional_price > 0 && <span className={cn("text-xs", selected ? "text-background/70" : "text-muted")}>+{formatPrice(v.additional_price)}</span>}
                 </button>

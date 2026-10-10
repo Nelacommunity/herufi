@@ -135,7 +135,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       supabase.from("profiles").select("role").eq("user_id", u.id).maybeSingle(),
     ]);
     setIsAdmin(profile.data?.role === "admin" || profile.data?.role === "super_admin");
-    if (!cart.error) setLines((cart.data ?? []).map(rowToLine).filter((l): l is CartLine => Boolean(l)));
+    if (!cart.error) {
+      let lines = (cart.data ?? []).map(rowToLine).filter((l): l is CartLine => Boolean(l));
+      // Show the chosen variant's photo (migration 0011). Fetched separately so older databases still load the bag.
+      const variantIds = lines.map((l) => l.variantId).filter((id): id is string => Boolean(id));
+      if (variantIds.length) {
+        const photos = await supabase.from("product_variants").select("id, image_url").in("id", variantIds);
+        if (!photos.error) {
+          const map = new Map(((photos.data ?? []) as { id: string; image_url: string | null }[]).map((v) => [v.id, v.image_url]));
+          lines = lines.map((l) => (l.variantId && map.get(l.variantId) ? { ...l, image: map.get(l.variantId)! } : l));
+        }
+      }
+      setLines(lines);
+    }
     if (!wish.error) setWishlist((wish.data ?? []).map((w) => w.product_id as string));
   }, [supabase]);
 
@@ -225,7 +237,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       name: product.name,
       slug: product.slug,
       brand: product.brand,
-      image: product.images[0]?.image_url ?? null,
+      image: variant?.image_url || product.images[0]?.image_url || null,
       unitPrice: product.price + extra,
       compareAtPrice: product.compare_at_price ? product.compare_at_price + extra : null,
       variantLabel: variant ? `${variant.name}: ${variant.value}` : null,

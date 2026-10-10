@@ -3,20 +3,12 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { CatalogView } from "@/components/catalog/catalog-view";
-import { getCategories, getCategoryBySlug } from "@/lib/queries/catalog";
+import { getCategoryBySlug } from "@/lib/queries/catalog";
 import { getI18n } from "@/i18n/server";
 import { plural } from "@/i18n/config";
 import { categoryName } from "@/lib/utils";
 import { SEO_COPY } from "@/lib/seo-content";
 import { pageAlternates } from "@/lib/seo";
-
-export async function generateStaticParams() {
-  try {
-    return (await getCategories()).map((c) => ({ slug: c.slug }));
-  } catch {
-    return [];
-  }
-}
 
 export async function generateMetadata({ params }: PageProps<"/categories/[slug]">): Promise<Metadata> {
   const { slug } = await params;

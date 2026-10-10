@@ -6,7 +6,8 @@ import { ProductRowActions } from "@/components/admin/product-row-actions";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
-import { can } from "@/lib/permissions";
+import { can, isSuperAdmin } from "@/lib/permissions";
+import { BulkOnly, BulkSelectProvider, SelectAllCheckbox, SelectCheckbox } from "@/components/admin/bulk-select";
 import { cn, formatPrice } from "@/lib/utils";
 
 export const metadata = { title: "Products" };
@@ -49,10 +50,11 @@ export default async function AdminProducts({ searchParams }: PageProps<"/admin/
         </form>
       </div>
 
+      <BulkSelectProvider enabled={isSuperAdmin(profile)} kind="products">
       <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
         <table className="w-full min-w-[760px] text-sm">
           <thead className="border-b border-border text-left text-xs uppercase tracking-wider text-muted">
-            <tr><th className="px-5 py-3 font-medium">Product</th><th className="py-3 font-medium">Status</th><th className="py-3 font-medium">Inventory</th><th className="py-3 font-medium">Price</th><th className="py-3 font-medium">Sold</th><th className="px-5 py-3" /></tr>
+            <tr><BulkOnly><th className="w-10 pl-5 py-3"><SelectAllCheckbox ids={(data ?? []).map((p) => p.id)} /></th></BulkOnly><th className="px-5 py-3 font-medium">Product</th><th className="py-3 font-medium">Status</th><th className="py-3 font-medium">Inventory</th><th className="py-3 font-medium">Price</th><th className="py-3 font-medium">Sold</th><th className="px-5 py-3" /></tr>
           </thead>
           <tbody>
             {(data ?? []).map((p) => {
@@ -61,6 +63,7 @@ export default async function AdminProducts({ searchParams }: PageProps<"/admin/
               const category = (p.category as unknown as { name: string } | null)?.name;
               return (
                 <tr key={p.id} className="border-b border-border last:border-0 hover:bg-surface-2/50">
+                  <BulkOnly><td className="w-10 pl-5 py-3"><SelectCheckbox id={p.id} label={p.name} /></td></BulkOnly>
                   <td className="px-5 py-3">
                     <Link href={`/admin/products/${p.id}`} className="flex items-center gap-3">
                       <span className="relative h-12 w-10 shrink-0 overflow-hidden rounded-lg bg-surface-2">{img && <Image src={img} alt="" fill sizes="40px" className="object-cover" />}</span>
@@ -75,10 +78,11 @@ export default async function AdminProducts({ searchParams }: PageProps<"/admin/
                 </tr>
               );
             })}
-            {!data?.length && <tr><td colSpan={6} className="px-5 py-16 text-center text-muted">No products match. <Link href="/admin/products" className="underline">Clear filters</Link></td></tr>}
+            {!data?.length && <tr><td colSpan={7} className="px-5 py-16 text-center text-muted">No products match. <Link href="/admin/products" className="underline">Clear filters</Link></td></tr>}
           </tbody>
         </table>
       </div>
+      </BulkSelectProvider>
       {pages > 1 && (
         <div className="mt-6 flex items-center justify-between text-sm">
           <span className="text-muted">Page {page} of {pages}</span>

@@ -15,7 +15,7 @@ import type { Category, DeliveryMethod, Product } from "@/lib/types";
 import { cn, slugify } from "@/lib/utils";
 
 type Img = { id?: string; image_url: string; alt_text: string };
-type Variant = { id?: string; name: string; value: string; additional_price: string; stock_quantity: string };
+type Variant = { id?: string; name: string; value: string; additional_price: string; stock_quantity: string; image_url: string | null };
 
 const card = "rounded-2xl border border-border bg-surface p-5 sm:p-6";
 
@@ -42,7 +42,7 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
   const [methods, setMethods] = useState<DeliveryMethod[]>(product?.shipping_methods ?? ["standard", "express", "sea"]);
   const cbm = (Number(dims.l) * Number(dims.w) * Number(dims.h)) / 1_000_000 || 0;
   const [images, setImages] = useState<Img[]>(product?.images.map((i) => ({ id: i.id, image_url: i.image_url, alt_text: i.alt_text })) ?? []);
-  const [variants, setVariants] = useState<Variant[]>(product?.variants.map((v) => ({ id: v.id, name: v.name, value: v.value, additional_price: String(v.additional_price), stock_quantity: String(v.stock_quantity) })) ?? []);
+  const [variants, setVariants] = useState<Variant[]>(product?.variants.map((v) => ({ id: v.id, name: v.name, value: v.value, additional_price: String(v.additional_price), stock_quantity: String(v.stock_quantity), image_url: v.image_url ?? null })) ?? []);
   const [uploading, setUploading] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -102,7 +102,7 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
       sku: sku || null, stock_quantity: Number(stock) || 0, is_featured: featured, is_active: active,
       weight_kg: Number(weight), length_cm: Number(dims.l), width_cm: Number(dims.w), height_cm: Number(dims.h), shipping_methods: methods,
       images,
-      variants: variants.filter((v) => v.name.trim() && v.value.trim()).map((v) => ({ ...v, additional_price: Number(v.additional_price) || 0, stock_quantity: Number(v.stock_quantity) || 0 })),
+      variants: variants.filter((v) => v.name.trim() && v.value.trim()).map((v) => ({ ...v, additional_price: Number(v.additional_price) || 0, stock_quantity: Number(v.stock_quantity) || 0, image_url: v.image_url && images.some((img) => img.image_url === v.image_url) ? v.image_url : null })),
     };
     startSave(async () => {
       const res = await saveProduct(payload);
@@ -169,9 +169,9 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
         <section className={card}>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-semibold">Variants</h2>
-            <Button type="button" size="sm" variant="secondary" onClick={() => setVariants([...variants, { name: variants[0]?.name ?? "Size", value: "", additional_price: "0", stock_quantity: "0" }])}><Plus className="h-4 w-4" /> Add option</Button>
+            <Button type="button" size="sm" variant="secondary" onClick={() => setVariants([...variants, { name: variants[0]?.name ?? "Size", value: "", additional_price: "0", stock_quantity: "0", image_url: null }])}><Plus className="h-4 w-4" /> Add option</Button>
           </div>
-          <p className="mb-5 text-sm text-muted">Use one option type per product (e.g. Size or Color). When variants exist, stock is tracked per variant.</p>
+          <p className="mb-5 text-sm text-muted">Use one option type per product (e.g. Size or Color). When variants exist, stock is tracked per variant. Link a photo to a variant and the store shows it when a shopper picks that option; the first image stays the cover.</p>
           {variants.length > 0 ? (
             <div className="space-y-2">
               <div className="hidden grid-cols-[1fr_1fr_110px_100px_76px] gap-2 px-1 text-xs font-medium text-muted sm:grid"><span>Option</span><span>Value</span><span>Extra price</span><span>Stock</span><span /></div>
@@ -187,6 +187,20 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
                     <button type="button" onClick={() => setVariants(move(variants, i, -1))} className="grid h-10 w-8 place-items-center rounded-lg text-muted hover:bg-surface-2" aria-label="Move up"><ArrowUp className="h-4 w-4" /></button>
                     <button type="button" onClick={() => setVariants(variants.filter((_, j) => j !== i))} className="grid h-10 w-8 place-items-center rounded-lg text-sale hover:bg-sale-soft" aria-label="Remove variant"><Trash2 className="h-4 w-4" /></button>
                   </div>
+                  {images.length > 0 && (
+                    <div className="col-span-2 flex flex-wrap items-center gap-1.5 pb-1 sm:col-span-5" role="radiogroup" aria-label={`Photo for ${v.value || "this variant"}`}>
+                      <span className="mr-1 text-xs text-muted">Photo</span>
+                      <button type="button" role="radio" aria-checked={!v.image_url} onClick={() => setVariants(variants.map((x, j) => (j === i ? { ...x, image_url: null } : x)))}
+                        className={cn("h-9 rounded-lg border px-2.5 text-xs", !v.image_url ? "border-foreground bg-foreground text-background" : "border-border-strong text-muted hover:border-foreground")}>Cover</button>
+                      {images.map((img, n) => (
+                        <button key={`${img.image_url}-${n}`} type="button" role="radio" aria-checked={v.image_url === img.image_url} aria-label={`Image ${n + 1}`}
+                          onClick={() => setVariants(variants.map((x, j) => (j === i ? { ...x, image_url: img.image_url } : x)))}
+                          className={cn("relative h-9 w-9 overflow-hidden rounded-lg border-2", v.image_url === img.image_url ? "border-foreground" : "border-transparent opacity-70 hover:opacity-100")}>
+                          <Image src={img.image_url} alt="" fill sizes="36px" className="object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

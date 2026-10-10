@@ -48,6 +48,8 @@ const variantSchema = z.object({
   value: z.string().trim().min(1).max(60),
   additional_price: z.coerce.number().min(-100000).max(100000),
   stock_quantity: z.coerce.number().int().min(0).max(1000000),
+  /** One of the product's images, shown when this variant is chosen. */
+  image_url: z.url().nullable().optional(),
 });
 
 const productSchema = z.object({
@@ -116,9 +118,15 @@ export async function saveProduct(payload: ProductPayload): Promise<ActionResult
     if (keep.length) del = del.not("id", "in", `(${keep.join(",")})`);
     const { error: delVar } = await del;
     if (delVar) throw delVar;
+    // A variant photo must be one of this product's images; drop links to photos that were removed.
+    const imageUrls = new Set(images.map((img) => img.image_url));
+    let photos = true; // false once we learn the database predates 0011_variant_images.sql
     for (const [i, v] of variants.entries()) {
-      const data = { product_id: productId, name: v.name, value: v.value, additional_price: v.additional_price, stock_quantity: v.stock_quantity, sort_order: i };
-      const { error } = v.id ? await supabase.from("product_variants").update(data).eq("id", v.id) : await supabase.from("product_variants").insert(data);
+      const base = { product_id: productId, name: v.name, value: v.value, additional_price: v.additional_price, stock_quantity: v.stock_quantity, sort_order: i };
+      const write = (data: typeof base & { image_url?: string | null }) =>
+        v.id ? supabase.from("product_variants").update(data).eq("id", v.id) : supabase.from("product_variants").insert(data);
+      let { error } = await write(photos ? { ...base, image_url: v.image_url && imageUrls.has(v.image_url) ? v.image_url : null } : base);
+      if (error?.code === "42703" && photos) { photos = false; ({ error } = await write(base)); }
       if (error) throw error;
     }
 
@@ -363,4 +371,31 @@ export async function setStaff(input: z.input<typeof staffSchema>): Promise<Acti
   if (error) return fail(error, "We couldn't update this staff member.");
   revalidatePath("/admin", "layout");
   return { ok: true, message: role === "customer" ? "Staff access removed" : "Staff updated" };
+}
+
+// Bulk delete (super admins only) -------------------------------------------------
+
+export type BulkKind = "products" | "categories" | "coupons";
+
+/** Delete many products, categories or discount codes at once. Super admins only (also enforced in admin_bulk_delete). */
+export async function bulkDelete(kind: BulkKind, ids: string[]): Promise<ActionResult<{ count: number }>> {
+  if (!["products", "categories", "coupons"].includes(kind)) return { ok: false, error: "Unknown item type" };
+  const clean = [...new Set(ids)].filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+  if (!clean.length) return { ok: false, error: "Select at least one item." };
+  if (clean.length > 500) return { ok: false, error: "Delete at most 500 items at a time." };
+  try {
+    await assertSuperAdmin();
+  } catch (e) {
+    return fail(e, "Only a super admin can delete in bulk.");
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_bulk_delete", { p_kind: kind, p_ids: clean });
+  if (error) return fail(error, "We couldn't delete these items.");
+  const count = Number(data ?? 0);
+  if (kind === "coupons") revalidatePath("/admin/discounts");
+  else refreshCatalog();
+  revalidatePath("/admin", "layout");
+  const noun = { products: "product", categories: "category", coupons: "discount code" }[kind];
+  const plural = kind === "categories" ? (count === 1 ? "category" : "categories") : `${noun}${count === 1 ? "" : "s"}`;
+  return { ok: true, data: { count }, message: `Deleted ${count} ${plural}` };
 }

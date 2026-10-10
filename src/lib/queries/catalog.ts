@@ -4,7 +4,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { PAGE_SIZE, type SortValue } from "@/lib/constants";
 import type { Category, Product, ProductQuestion, ProductSummary, Review, ShippingOption, ShippingRate } from "@/lib/types";
 import { normalizeOptions } from "@/lib/shipping";
-import { PRODUCT_SELECT, SUMMARY_SELECT, toProduct, toSummary } from "@/lib/queries/shared";
+import { PRODUCT_SELECT, SUMMARY_SELECT, toProduct, toSummary, withVariantImages } from "@/lib/queries/shared";
 
 export const getCategories = cache(async (): Promise<Category[]> => {
   const db = createPublicClient(3600);
@@ -123,7 +123,7 @@ export const getProductBySlug = cache(async (slug: string): Promise<Product | nu
     ({ data, error } = await db.from("products").select(PRODUCT_SELECT.replace(/, weight_kg.*$/, "")).eq("slug", slug).eq("is_active", true).maybeSingle());
   }
   if (error) throw error;
-  return data ? toProduct(data) : null;
+  return data ? withVariantImages(db, toProduct(data)) : null;
 });
 
 export async function getAllProductSlugs() {

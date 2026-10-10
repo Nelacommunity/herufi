@@ -11,10 +11,11 @@ import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { BulkSelectProvider, SelectAllCheckbox, SelectCheckbox } from "@/components/admin/bulk-select";
 import type { Category } from "@/lib/types";
 import { slugify } from "@/lib/utils";
 
-export function CategoryManager({ categories: initial }: { categories: Category[] }) {
+export function CategoryManager({ categories: initial, canBulk = false }: { categories: Category[]; canBulk?: boolean }) {
   const router = useRouter();
   const [categories, setCategories] = useState(initial);
   const [source, setSource] = useState(initial);
@@ -33,10 +34,15 @@ export function CategoryManager({ categories: initial }: { categories: Category[
 
   return (
     <>
-      <div className="mb-6 flex justify-end"><Button onClick={() => setEditing("new")}><Plus className="h-4 w-4" /> Add category</Button></div>
+      <BulkSelectProvider enabled={canBulk} kind="categories">
+      <div className="mb-6 flex items-center justify-between gap-3">
+        {canBulk && categories.length > 0 ? <label className="flex items-center gap-2 pl-4 text-sm text-muted"><SelectAllCheckbox ids={categories.map((c) => c.id)} /> Select all</label> : <span />}
+        <Button onClick={() => setEditing("new")}><Plus className="h-4 w-4" /> Add category</Button>
+      </div>
       <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
         {categories.map((c, i) => (
           <li key={c.id} className="flex items-center gap-4 p-4">
+            <SelectCheckbox id={c.id} label={c.name} />
             <div className="flex flex-col">
               <button onClick={() => move(i, -1)} disabled={i === 0 || pending} className="grid h-7 w-7 place-items-center rounded-full text-muted hover:bg-surface-2 disabled:opacity-30" aria-label={`Move ${c.name} up`}><ArrowUp className="h-4 w-4" /></button>
               <button onClick={() => move(i, 1)} disabled={i === categories.length - 1 || pending} className="grid h-7 w-7 place-items-center rounded-full text-muted hover:bg-surface-2 disabled:opacity-30" aria-label={`Move ${c.name} down`}><ArrowDown className="h-4 w-4" /></button>
@@ -55,6 +61,7 @@ export function CategoryManager({ categories: initial }: { categories: Category[
         ))}
         {!categories.length && <li className="p-12 text-center text-muted">No categories yet.</li>}
       </ul>
+      </BulkSelectProvider>
       <Sheet open={editing !== null} onClose={() => setEditing(null)} title={editing === "new" ? "New category" : "Edit category"}>
         {editing !== null && <CategoryForm category={editing === "new" ? null : editing} onDone={() => { setEditing(null); router.refresh(); }} />}
       </Sheet>
