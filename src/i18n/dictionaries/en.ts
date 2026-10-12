@@ -214,6 +214,7 @@ const en = {
     pleaseSelect: "Please select a {option}",
     stockSoldOut: "Sold out. We restock popular items often.",
     variantSoldOut: "{value} is sold out",
+    comboUnavailable: "Not available with {selection}",
     lowStock: "Only {n} left. Order soon.",
     inStock: "In stock, ships from China within 24 hours",
     addToBag: "Add to bag",

@@ -18,6 +18,7 @@ import type { Product } from "@/lib/types";
 import { cn, formatPrice } from "@/lib/utils";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/config";
+import { findVariant, imageFor, initialSelection, optionGroups, photoForValue, photoOption, selectValue, valueState, type Selection } from "@/lib/variant-options";
 
 
 export function PurchasePanel({ product, freeSeaShipping = null }: { product: Product; freeSeaShipping?: number | null }) {
@@ -26,16 +27,19 @@ export function PurchasePanel({ product, freeSeaShipping = null }: { product: Pr
   const p = t.product;
   const router = useRouter();
   const { show: showImage } = useVariantImage();
-  const optionName = product.variants[0]?.name;
-  const optionLabel = optionName ? (t.optionNames[optionName] ?? optionName) : "";
-  const [variantId, setVariantId] = useState<string | null>(product.variants.length === 1 ? product.variants[0].id : null);
+  // Options such as Color and Size are chosen separately; together they pick one variant (combination).
+  const groups = useMemo(() => optionGroups(product.variants), [product.variants]);
+  const photoGroup = useMemo(() => photoOption(product.variants), [product.variants]);
+  const [sel, setSel] = useState<Selection>(() => initialSelection(product.variants));
+  const label = (name: string) => t.optionNames[name] ?? name;
   const [qty, setQty] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [added, setAdded] = useState(false);
   const [showSticky, setShowSticky] = useState(false);
   const ctaRef = useRef<HTMLDivElement>(null);
 
-  const variant = product.variants.find((v) => v.id === variantId) ?? null;
+  const found = findVariant(product.variants, sel);
+  const variant = found ? product.variants.find((v) => v.id === found.id) ?? null : null;
   const extra = variant?.additional_price ?? 0;
   const stock = variant ? variant.stock_quantity : product.variants.length ? Math.max(...product.variants.map((v) => v.stock_quantity)) : product.stock_quantity;
   const available = isInStock(product);
@@ -61,7 +65,8 @@ export function PurchasePanel({ product, freeSeaShipping = null }: { product: Pr
 
   function add(goToCheckout = false) {
     if (product.variants.length && !variant) {
-      setError(fmt(p.pleaseSelect, { option: optionLabel.toLowerCase() }));
+      const missing = groups.find((g) => !sel[g.name]);
+      setError(fmt(p.pleaseSelect, { option: label(missing?.name ?? groups[0]?.name ?? "").toLowerCase() }));
       document.getElementById("variant-picker")?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
@@ -72,7 +77,14 @@ export function PurchasePanel({ product, freeSeaShipping = null }: { product: Pr
     setTimeout(() => setAdded(false), 1800);
   }
 
-  const isColor = optionName === "Color";
+  function choose(name: string, value: string) {
+    const next = selectValue(product.variants, sel, name, value);
+    setSel(next);
+    setError(null);
+    // Show the photo for what's chosen so far (e.g. the colour, before a size is picked).
+    const img = imageFor(product.variants, next);
+    if (img) showImage(img);
+  }
 
   return (
     <div>
@@ -100,36 +112,51 @@ export function PurchasePanel({ product, freeSeaShipping = null }: { product: Pr
       <p className="mt-6 text-pretty leading-relaxed text-muted">{product.description.split(". ").slice(0, 2).join(". ")}{product.description.split(". ").length > 2 ? "." : ""}</p>
 
       {product.variants.length > 0 && (
-        <fieldset id="variant-picker" className="mt-8 scroll-mt-32">
-          <legend className="mb-3 flex w-full items-center justify-between text-sm">
-            <span><span className="font-semibold">{optionLabel}:</span> <span className="text-muted">{variant?.value ?? p.selectAnOption}</span></span>
-            {optionName === "Size" && <Link href="/help/faq#sizing" className="text-muted underline-offset-4 hover:underline">{p.sizeGuide}</Link>}
-          </legend>
-          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={optionLabel}>
-            {product.variants.map((v) => {
-              const selected = v.id === variantId;
-              const soldOut = v.stock_quantity <= 0;
-              const swatch = SWATCHES[v.value.toLowerCase()];
-              return (
-                <button key={v.id} role="radio" aria-checked={selected} disabled={soldOut} onClick={() => { setVariantId(v.id); setError(null); if (v.image_url) showImage(v.image_url); }}
-                  className={cn(
-                    "relative inline-flex h-12 min-w-12 items-center justify-center gap-2 rounded-full border px-4 text-sm font-medium transition-all duration-200",
-                    selected ? "border-foreground bg-foreground text-background" : "border-border-strong hover:border-foreground",
-                    soldOut && "cursor-not-allowed border-dashed text-subtle line-through hover:border-border-strong",
-                  )}>
-                  {v.image_url ? (
-                    <span className="relative -ml-2 h-8 w-8 shrink-0 overflow-hidden rounded-full border border-black/10 bg-surface-2" aria-hidden>
-                      <Image src={v.image_url} alt="" fill sizes="32px" className="object-cover" />
-                    </span>
-                  ) : isColor && swatch && <span className="h-5 w-5 rounded-full border border-black/10" style={{ background: swatch }} aria-hidden />}
-                  {v.value}
-                  {v.additional_price > 0 && <span className={cn("text-xs", selected ? "text-background/70" : "text-muted")}>+{formatPrice(v.additional_price)}</span>}
-                </button>
-              );
-            })}
-          </div>
-          {error && <p className="mt-3 text-sm font-medium text-sale" role="alert">{error}</p>}
-        </fieldset>
+        <div id="variant-picker" className="mt-8 space-y-6 scroll-mt-32">
+          {groups.map((g) => {
+            const chosen = sel[g.name];
+            const others = Object.entries(sel).filter(([n]) => n !== g.name).map(([, v]) => v).join(", ");
+            return (
+              <fieldset key={g.name}>
+                <legend className="mb-3 flex w-full items-center justify-between text-sm">
+                  <span><span className="font-semibold">{label(g.name)}:</span> <span className="text-muted">{chosen ?? p.selectAnOption}</span></span>
+                  {g.name === "Size" && <Link href="/help/faq#sizing" className="text-muted underline-offset-4 hover:underline">{p.sizeGuide}</Link>}
+                </legend>
+                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={label(g.name)}>
+                  {g.values.map((value) => {
+                    const selected = chosen === value;
+                    const state = valueState(product.variants, sel, g.name, value);
+                    // A photo for this value (e.g. the colour) from any variant that has one.
+                    const thumb = g.name === photoGroup ? photoForValue(product.variants, g.name, value) : null;
+                    const swatch = g.name === "Color" ? SWATCHES[value.toLowerCase()] : undefined;
+                    // A single-option variant can carry an extra price; show it on its button.
+                    const single = groups.length === 1 ? product.variants.find((v) => v.value === value) : undefined;
+                    return (
+                      <button key={value} type="button" role="radio" aria-checked={selected} onClick={() => choose(g.name, value)}
+                        title={state === "unavailable" && others ? fmt(p.comboUnavailable, { selection: others }) : state === "soldout" ? fmt(p.variantSoldOut, { value }) : undefined}
+                        className={cn(
+                          "relative inline-flex h-12 min-w-12 items-center justify-center gap-2 rounded-full border px-4 text-sm font-medium transition-all duration-200",
+                          selected ? "border-foreground bg-foreground text-background" : "border-border-strong hover:border-foreground",
+                          !selected && state === "soldout" && "border-dashed text-subtle line-through",
+                          !selected && state === "unavailable" && "border-dashed text-subtle opacity-50",
+                        )}>
+                        {thumb ? (
+                          <span className="relative -ml-2 h-8 w-8 shrink-0 overflow-hidden rounded-full border border-black/10 bg-surface-2" aria-hidden>
+                            <Image src={thumb} alt="" fill sizes="32px" className="object-cover" />
+                          </span>
+                        ) : swatch && <span className="h-5 w-5 rounded-full border border-black/10" style={{ background: swatch }} aria-hidden />}
+                        {value}
+                        {single && single.additional_price > 0 && <span className={cn("text-xs", selected ? "text-background/70" : "text-muted")}>+{formatPrice(single.additional_price)}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            );
+          })}
+          {variant && variant.additional_price > 0 && groups.length > 1 && <p className="text-sm text-muted">{variant.value}: +{formatPrice(variant.additional_price)}</p>}
+          {error && <p className="text-sm font-medium text-sale" role="alert">{error}</p>}
+        </div>
       )}
 
       <p className={cn("mt-6 flex items-center gap-2 text-sm font-medium", stockNote.tone)}>

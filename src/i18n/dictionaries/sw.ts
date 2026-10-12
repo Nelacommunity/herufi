@@ -214,6 +214,7 @@ const sw: Dictionary = {
     pleaseSelect: "Tafadhali chagua {option}",
     stockSoldOut: "Zimeisha. Bidhaa pendwa huletwa tena mara kwa mara.",
     variantSoldOut: "{value} imeisha",
+    comboUnavailable: "Haipatikani pamoja na {selection}",
     lowStock: "Zimebaki {n} tu. Agiza mapema.",
     inStock: "Ipo, inasafirishwa kutoka China ndani ya saa 24",
     addToBag: "Weka kikapuni",
