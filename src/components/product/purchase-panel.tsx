@@ -18,7 +18,7 @@ import type { Product } from "@/lib/types";
 import { cn, formatPrice } from "@/lib/utils";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/config";
-import { findVariant, imageFor, initialSelection, optionGroups, photoForValue, photoOption, selectValue, valueState, type Selection } from "@/lib/variant-options";
+import { findVariant, imageFor, initialSelection, optionGroups, photoForValue, photoOption, selectValue, valueExtra, valueState, type Selection } from "@/lib/variant-options";
 
 
 export function PurchasePanel({ product, freeSeaShipping = null }: { product: Product; freeSeaShipping?: number | null }) {
@@ -129,8 +129,8 @@ export function PurchasePanel({ product, freeSeaShipping = null }: { product: Pr
                     // A photo for this value (e.g. the colour) from any variant that has one.
                     const thumb = g.name === photoGroup ? photoForValue(product.variants, g.name, value) : null;
                     const swatch = g.name === "Color" ? SWATCHES[value.toLowerCase()] : undefined;
-                    // A single-option variant can carry an extra price; show it on its button.
-                    const single = groups.length === 1 ? product.variants.find((v) => v.value === value) : undefined;
+                    // Extra price shared by every variant with this value (e.g. size XL +2,000), shown on its button.
+                    const extraPrice = valueExtra(product.variants, g.name, value);
                     return (
                       <button key={value} type="button" role="radio" aria-checked={selected} onClick={() => choose(g.name, value)}
                         title={state === "unavailable" && others ? fmt(p.comboUnavailable, { selection: others }) : state === "soldout" ? fmt(p.variantSoldOut, { value }) : undefined}
@@ -146,7 +146,7 @@ export function PurchasePanel({ product, freeSeaShipping = null }: { product: Pr
                           </span>
                         ) : swatch && <span className="h-5 w-5 rounded-full border border-black/10" style={{ background: swatch }} aria-hidden />}
                         {value}
-                        {single && single.additional_price > 0 && <span className={cn("text-xs", selected ? "text-background/70" : "text-muted")}>+{formatPrice(single.additional_price)}</span>}
+                        {extraPrice != null && extraPrice > 0 && <span className={cn("text-xs", selected ? "text-background/70" : "text-muted")}>+{formatPrice(extraPrice)}</span>}
                       </button>
                     );
                   })}
@@ -154,7 +154,7 @@ export function PurchasePanel({ product, freeSeaShipping = null }: { product: Pr
               </fieldset>
             );
           })}
-          {variant && variant.additional_price > 0 && groups.length > 1 && <p className="text-sm text-muted">{variant.value}: +{formatPrice(variant.additional_price)}</p>}
+          {variant && variant.additional_price > 0 && groups.every((g) => valueExtra(product.variants, g.name, sel[g.name]) == null) && <p className="text-sm text-muted">{variant.value}: +{formatPrice(variant.additional_price)}</p>}
           {error && <p className="text-sm font-medium text-sale" role="alert">{error}</p>}
         </div>
       )}

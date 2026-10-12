@@ -13,7 +13,8 @@ import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner";
 import type { Category, DeliveryMethod, Product } from "@/lib/types";
 import { cn, slugify } from "@/lib/utils";
-import { combinations, optionGroups, validOptionText } from "@/lib/variant-options";
+import { fitsMatrix, fromVariants, matrixError, toVariants, type Matrix } from "@/lib/variant-matrix";
+import { VariantMatrixEditor } from "@/components/admin/variant-matrix-editor";
 
 type Img = { id?: string; image_url: string; alt_text: string };
 type Variant = { id?: string; name: string; value: string; additional_price: string; stock_quantity: string; image_url: string | null };
@@ -44,11 +45,10 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
   const cbm = (Number(dims.l) * Number(dims.w) * Number(dims.h)) / 1_000_000 || 0;
   const [images, setImages] = useState<Img[]>(product?.images.map((i) => ({ id: i.id, image_url: i.image_url, alt_text: i.alt_text })) ?? []);
   const [variants, setVariants] = useState<Variant[]>(product?.variants.map((v) => ({ id: v.id, name: v.name, value: v.value, additional_price: String(v.additional_price), stock_quantity: String(v.stock_quantity), image_url: v.image_url ?? null })) ?? []);
-  // Option builder: e.g. Color = "Red, Blue" and Size = "S, M, L" → one variant per combination.
-  const [optionDefs, setOptionDefs] = useState<{ name: string; values: string }[]>(() => {
-    const g = optionGroups(product?.variants ?? []);
-    return g.length ? g.map((x) => ({ name: x.name, values: x.values.join(", ") })) : [{ name: "Color", values: "" }, { name: "Size", values: "" }];
-  });
+  // Colours × sizes editor. Products set up with more than two options keep the plain variant list.
+  const [matrixMode] = useState(() => fitsMatrix(product?.variants ?? []));
+  const [matrix, setMatrix] = useState<Matrix>(() => fromVariants(product?.variants ?? []));
+  const activeVariants: Variant[] = matrixMode ? toVariants(matrix) : variants;
   const [uploading, setUploading] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -83,25 +83,6 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
     }
   }
 
-  function generateVariants() {
-    const groups = optionDefs.map((d) => ({ name: d.name.trim(), values: d.values.split(",").map((v) => v.trim()).filter(Boolean) })).filter((g) => g.name && g.values.length);
-    if (!groups.length) return void toast.error("Add at least one option with values, e.g. Color: Red, Blue");
-    const bad = groups.flatMap((g) => [g.name, ...g.values]).find((x) => !validOptionText(x));
-    if (bad) return void toast.error(`“${bad}” can't contain “/”`);
-    if (new Set(groups.map((g) => g.name.toLowerCase())).size !== groups.length) return void toast.error("Each option needs a different name");
-    const combos = combinations(groups);
-    if (combos.length > 50) return void toast.error(`That makes ${combos.length} combinations; the limit is 50`);
-    // Keep stock, price and photo of combinations that already exist.
-    const byValue = new Map(variants.map((v) => [v.value.trim(), v]));
-    const removed = variants.filter((v) => !combos.some((c) => c.value === v.value.trim()));
-    if (removed.length && !window.confirm(`This removes ${removed.length} existing variant${removed.length === 1 ? "" : "s"} (${removed.map((v) => v.value).join(", ")}). Continue?`)) return;
-    setVariants(combos.map((c) => {
-      const old = byValue.get(c.value);
-      return old ? { ...old, name: c.name } : { name: c.name, value: c.value, additional_price: "0", stock_quantity: "0", image_url: null };
-    }));
-    toast.success(`${combos.length} combination${combos.length === 1 ? "" : "s"} ready. Set stock for each, and delete any that don't exist.`);
-  }
-
   function move<T>(list: T[], i: number, dir: -1 | 1) {
     const next = [...list];
     const j = i + dir;
@@ -112,6 +93,8 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    const matrixProblem = matrixMode ? matrixError(matrix) : null;
+    if (matrixProblem) return void toast.error(matrixProblem);
     const specifications = Object.fromEntries(
       specs.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
         const idx = l.indexOf(":");
@@ -127,7 +110,7 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
       sku: sku || null, stock_quantity: Number(stock) || 0, is_featured: featured, is_active: active,
       weight_kg: Number(weight), length_cm: Number(dims.l), width_cm: Number(dims.w), height_cm: Number(dims.h), shipping_methods: methods,
       images,
-      variants: variants.filter((v) => v.name.trim() && v.value.trim()).map((v) => ({ ...v, additional_price: Number(v.additional_price) || 0, stock_quantity: Number(v.stock_quantity) || 0, image_url: v.image_url && images.some((img) => img.image_url === v.image_url) ? v.image_url : null })),
+      variants: activeVariants.filter((v) => v.name.trim() && v.value.trim()).map((v) => ({ ...v, additional_price: Number(v.additional_price) || 0, stock_quantity: Number(v.stock_quantity) || 0, image_url: v.image_url && images.some((img) => img.image_url === v.image_url) ? v.image_url : null })),
     };
     startSave(async () => {
       const res = await saveProduct(payload);
@@ -191,27 +174,19 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
           </div>
         </section>
 
+        {matrixMode ? (
+        <section className={card}>
+          <h2 className="mb-1 font-semibold">Colours &amp; sizes</h2>
+          <p className="mb-5 text-sm text-muted">Give each colour its photo and each size its price, then enter stock for the combinations you sell. The first product image stays the cover.</p>
+          <VariantMatrixEditor matrix={matrix} onChange={setMatrix} images={images} />
+        </section>
+        ) : (
         <section className={card}>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-semibold">Variants</h2>
             <Button type="button" size="sm" variant="ghost" onClick={() => setVariants([...variants, { name: variants[0]?.name ?? "Size", value: "", additional_price: "0", stock_quantity: "0", image_url: null }])}><Plus className="h-4 w-4" /> Add one variant</Button>
           </div>
-          <p className="mb-4 text-sm text-muted">Add options such as Color and Size, then create the combinations. Each combination has its own stock, extra price and photo; delete combinations that don&apos;t exist, or set their stock to 0 to show them as sold out. A photo linked to a colour shows when a shopper picks it; the first image stays the cover.</p>
-          <div className="mb-5 space-y-2 rounded-xl bg-surface-2 p-3">
-            {optionDefs.map((d, i) => (
-              <div key={i} className="grid grid-cols-[120px_1fr_32px] gap-2">
-                <input value={d.name} onChange={(e) => setOptionDefs(optionDefs.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} placeholder="Option (Color)" aria-label={`Option ${i + 1} name`}
-                  className="h-10 rounded-lg border border-border-strong bg-surface px-3 text-sm outline-none focus:border-foreground" />
-                <input value={d.values} onChange={(e) => setOptionDefs(optionDefs.map((x, j) => (j === i ? { ...x, values: e.target.value } : x)))} placeholder="Values, comma separated (Red, Blue)" aria-label={`Option ${i + 1} values`}
-                  className="h-10 rounded-lg border border-border-strong bg-surface px-3 text-sm outline-none focus:border-foreground" />
-                <button type="button" onClick={() => setOptionDefs(optionDefs.filter((_, j) => j !== i))} className="grid h-10 w-8 place-items-center rounded-lg text-sale hover:bg-sale-soft" aria-label={`Remove option ${i + 1}`}><Trash2 className="h-4 w-4" /></button>
-              </div>
-            ))}
-            <div className="flex flex-wrap gap-2 pt-1">
-              {optionDefs.length < 3 && <Button type="button" size="sm" variant="ghost" onClick={() => setOptionDefs([...optionDefs, { name: "", values: "" }])}><Plus className="h-4 w-4" /> Add option</Button>}
-              <Button type="button" size="sm" variant="secondary" onClick={generateVariants}>Create combinations</Button>
-            </div>
-          </div>
+          <p className="mb-5 text-sm text-muted">This product uses more than two options, so its variants are listed one by one.</p>
           {variants.length > 0 ? (
             <div className="space-y-2">
               <div className="hidden grid-cols-[1fr_1fr_110px_100px_76px] gap-2 px-1 text-xs font-medium text-muted sm:grid"><span>Option</span><span>Value</span><span>Extra price</span><span>Stock</span><span /></div>
@@ -248,6 +223,7 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
             <p className="rounded-xl bg-surface-2 p-4 text-center text-sm text-muted">No variants. This product is sold as a single item.</p>
           )}
         </section>
+        )}
       </div>
 
       <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
@@ -279,9 +255,9 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
           <h2 className="mb-5 font-semibold">Inventory</h2>
           <div className="grid grid-cols-2 gap-3">
             <Field label="SKU" htmlFor="sku" optional><Input id="sku" value={sku} onChange={(e) => setSku(e.target.value)} /></Field>
-            <Field label="Stock" htmlFor="stock"><Input id="stock" inputMode="numeric" value={variants.length ? String(variants.reduce((n, v) => n + (Number(v.stock_quantity) || 0), 0)) : stock} disabled={variants.length > 0} onChange={(e) => setStock(e.target.value.replace(/\D/g, ""))} /></Field>
+            <Field label="Stock" htmlFor="stock"><Input id="stock" inputMode="numeric" value={activeVariants.length ? String(activeVariants.reduce((n, v) => n + (Number(v.stock_quantity) || 0), 0)) : stock} disabled={activeVariants.length > 0} onChange={(e) => setStock(e.target.value.replace(/\D/g, ""))} /></Field>
           </div>
-          {variants.length > 0 && <p className="mt-3 text-sm text-muted">Calculated from variant stock.</p>}
+          {activeVariants.length > 0 && <p className="mt-3 text-sm text-muted">Calculated from colour and size stock.</p>}
         </section>
 
         <section className={card}>
