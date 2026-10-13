@@ -143,7 +143,6 @@ export class ImportError extends Error {
 export async function importFromScreenshots(images: ImportImage[], db: SupabaseClient): Promise<ImportResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new ImportError("AI import isn't set up yet: add GEMINI_API_KEY to the server environment.", 503);
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
   const [{ data: categories }, fx] = await Promise.all([
     db.from("categories").select("id, slug, name").order("sort_order"),
@@ -157,10 +156,10 @@ export async function importFromScreenshots(images: ImportImage[], db: SupabaseC
   };
 
   const ai = new GoogleGenAI({ apiKey });
-  let text: string | undefined;
-  try {
-    const response = await ai.models.generateContent({
-      model,
+  const pinned = process.env.GEMINI_MODEL?.trim();
+  let model = pinned || (await autoModel(ai));
+  const request = (m: string) => ai.models.generateContent({
+      model: m,
       contents: [{
         role: "user",
         parts: [
@@ -170,12 +169,26 @@ export async function importFromScreenshots(images: ImportImage[], db: SupabaseC
       }],
       config: { responseMimeType: "application/json", responseJsonSchema: SCHEMA, temperature: 0.2 },
     });
-    text = response.text;
+  let text: string | undefined;
+  try {
+    try {
+      text = (await request(model)).text;
+    } catch (e) {
+      // The automatically chosen model was retired: pick again once.
+      if (e instanceof ApiError && e.status === 404 && !pinned) {
+        cachedModel = null;
+        model = await autoModel(ai);
+        text = (await request(model)).text;
+      } else throw e;
+    }
   } catch (e) {
+    console.error("[ai-import] Gemini request failed", { model, error: e });
     if (e instanceof ApiError) {
-      if (e.status === 429) throw new ImportError("The AI is busy (rate limit). Wait a minute and try again.", 429);
-      if (e.status === 401 || e.status === 403) throw new ImportError("The Gemini API key was rejected. Check GEMINI_API_KEY.", 502);
-      throw new ImportError(`The AI service returned an error (${e.status}). Try again.`, 502);
+      const detail = geminiMessage(e);
+      if (e.status === 429) throw new ImportError("The AI is busy or your Gemini quota is used up. Wait a minute and try again.", 429);
+      if (e.status === 401 || e.status === 403) throw new ImportError(`The Gemini API key was rejected. Check GEMINI_API_KEY. ${detail}`.trim(), 502);
+      if (e.status === 404) throw new ImportError(`Gemini model “${model}” isn't available for this key.${pinned ? " Fix or remove GEMINI_MODEL." : ""} ${detail}`.trim(), 502);
+      throw new ImportError(`The AI service returned an error (${e.status}). ${detail}`.trim(), 502);
     }
     throw e;
   }
@@ -192,6 +205,51 @@ export async function importFromScreenshots(images: ImportImage[], db: SupabaseC
   for (const p of parsed.products) products.push(await toDraft(p, decoded, cats, rule, db));
 
   return { products, pricing: { rate: rule.rate, rateSource: fx.source, rateUpdatedAt: fx.updatedAt, multiplier: rule.multiplier, rounding: rule.rounding }, model };
+}
+
+// ---- Model selection ------------------------------------------------------------------------------------------
+
+let cachedModel: string | null = null;
+
+/**
+ * Picks the newest Gemini "Flash" model this key can use for generateContent (fast, cheap, reads images).
+ * Google retires model versions regularly, so the choice is discovered rather than hard-coded. Pin one with GEMINI_MODEL.
+ */
+async function autoModel(ai: GoogleGenAI): Promise<string> {
+  if (cachedModel) return cachedModel;
+  const names: string[] = [];
+  try {
+    for await (const m of await ai.models.list()) {
+      if (m.name && (m.supportedActions ?? []).includes("generateContent")) names.push(m.name.replace(/^models\//, ""));
+    }
+  } catch (e) {
+    console.error("[ai-import] listing Gemini models failed", e);
+    if (e instanceof ApiError && (e.status === 401 || e.status === 403)) throw new ImportError(`The Gemini API key was rejected. Check GEMINI_API_KEY. ${geminiMessage(e)}`.trim(), 502);
+    throw new ImportError("Couldn't reach Gemini to choose a model. Try again, or set GEMINI_MODEL.", 502);
+  }
+  const best = pickModel(names);
+  if (!best) throw new ImportError("No suitable Gemini model is available for this key. Set GEMINI_MODEL to one your key can use.", 502);
+  cachedModel = best;
+  return best;
+}
+
+/** Newest general-purpose Flash model (stable preferred, then preview); "pro" if there is no Flash. */
+export function pickModel(names: string[]): string | null {
+  const special = /(image|tts|audio|live|embed|vision|thinking|exp|robotics|computer|native|aqa|learnlm|gemma|imagen|veo|lyria|nano|banana)/i;
+  const version = (n: string) => Number(n.match(/gemini-(\d+(?:\.\d+)?)/)?.[1] ?? 0);
+  const rank = (n: string) =>
+    version(n) * 100 + (/latest$/.test(n) ? 3 : 0) - (/preview/.test(n) ? 5 : 0) - (/lite/.test(n) ? 20 : 0) - (/-\d{3,}$|-\d{2}-\d{2}/.test(n) ? 1 : 0);
+  const usable = names.filter((n) => n.startsWith("gemini-") && !special.test(n));
+  const flash = usable.filter((n) => n.includes("flash")).sort((a, b) => rank(b) - rank(a));
+  if (flash.length) return flash[0];
+  return usable.filter((n) => n.includes("pro")).sort((a, b) => rank(b) - rank(a))[0] ?? null;
+}
+
+/** Gemini's own error explanation, trimmed for showing to an admin (never includes the key). */
+function geminiMessage(e: ApiError): string {
+  const raw = e.message ?? "";
+  const m = raw.match(/"message":\s*"([^"]+)"/)?.[1] ?? raw;
+  return m.replace(/key=[^&\s"]+/gi, "key=…").slice(0, 300);
 }
 
 // ---- Conversion ----------------------------------------------------------------------------------------------------
