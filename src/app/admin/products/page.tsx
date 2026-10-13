@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Sparkles } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { ProductRowActions } from "@/components/admin/product-row-actions";
 import { buttonVariants } from "@/components/ui/button";
@@ -36,7 +36,7 @@ export default async function AdminProducts({ searchParams }: PageProps<"/admin/
 
   return (
     <>
-      <AdminPageHeader title="Products" description={`${count ?? 0} products in your catalog`} actions={can(profile, "products.create") ? <Link href="/admin/products/new" className={buttonVariants()}><Plus className="h-4 w-4" /> Add product</Link> : undefined} />
+      <AdminPageHeader title="Products" description={`${count ?? 0} products in your catalog`} actions={can(profile, "products.create") ? <><Link href="/admin/products/import" className={buttonVariants({ variant: "secondary" })}><Sparkles className="h-4 w-4" /> AI import</Link><Link href="/admin/products/new" className={buttonVariants()}><Plus className="h-4 w-4" /> Add product</Link></> : undefined} />
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
           {[["all", "All"], ["active", "Active"], ["draft", "Draft"], ["low", "Low stock"], ["sale", "On sale"]].map(([v, l]) => (
