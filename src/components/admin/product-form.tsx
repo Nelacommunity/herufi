@@ -21,7 +21,10 @@ type Variant = { id?: string; name: string; value: string; additional_price: str
 
 const card = "rounded-2xl border border-border bg-surface p-5 sm:p-6";
 
-export function ProductForm({ product, categories, canEdit = true, canDelete = false }: { product: Product | null; categories: Category[]; canEdit?: boolean; canDelete?: boolean }) {
+/** `groupDeal` is undefined when the database has no group buying yet (0013_engagement.sql); the section is hidden. */
+export function ProductForm({ product, categories, canEdit = true, canDelete = false, groupDeal }: {
+  product: Product | null; categories: Category[]; canEdit?: boolean; canDelete?: boolean; groupDeal?: { price: number | null; size: number };
+}) {
   const router = useRouter();
   const [saving, startSave] = useTransition();
   const [deleting, startDelete] = useTransition();
@@ -35,6 +38,8 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
   const [specs, setSpecs] = useState(Object.entries(product?.specifications ?? {}).map(([k, v]) => `${k}: ${v}`).join("\n"));
   const [price, setPrice] = useState(product?.price.toString() ?? "");
   const [compareAt, setCompareAt] = useState(product?.compare_at_price?.toString() ?? "");
+  const [groupPrice, setGroupPrice] = useState(groupDeal?.price != null ? String(groupDeal.price) : "");
+  const [groupSize, setGroupSize] = useState(String(groupDeal?.size ?? 2));
   const [sku, setSku] = useState(product?.sku ?? "");
   const [stock, setStock] = useState(product?.stock_quantity.toString() ?? "0");
   const [featured, setFeatured] = useState(product?.is_featured ?? false);
@@ -109,6 +114,7 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
       price: Number(price), compare_at_price: compareAt ? Number(compareAt) : null,
       sku: sku || null, stock_quantity: Number(stock) || 0, is_featured: featured, is_active: active,
       weight_kg: Number(weight), length_cm: Number(dims.l), width_cm: Number(dims.w), height_cm: Number(dims.h), shipping_methods: methods,
+      ...(groupDeal ? { group_price: groupPrice.trim() ? Number(groupPrice) : null, group_size: Number(groupSize) } : {}),
       images,
       variants: activeVariants.filter((v) => v.name.trim() && v.value.trim()).map((v) => ({ ...v, additional_price: Number(v.additional_price) || 0, stock_quantity: Number(v.stock_quantity) || 0, image_url: v.image_url && images.some((img) => img.image_url === v.image_url) ? v.image_url : null })),
     };
@@ -250,6 +256,28 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
           </div>
           <p className="mt-3 text-sm text-muted">{discount > 0 ? <span className="font-medium text-sale">Shows as {discount}% off</span> : "Set a higher compare-at price to show a discount."}</p>
         </section>
+
+        {groupDeal && (
+          <section className={card}>
+            <h2 className="mb-1 font-semibold">Group deal</h2>
+            <p className="mb-5 text-sm text-muted">Shoppers start a group in the app and share the link. When enough people join in time, each of them can buy this at the group price.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Group price" htmlFor="group-price" optional><Input id="group-price" inputMode="decimal" value={groupPrice} onChange={(e) => setGroupPrice(e.target.value.replace(/[^\d.]/g, ""))} placeholder="No group deal" /></Field>
+              <Field label="People needed" htmlFor="group-size">
+                <Select id="group-size" value={groupSize} onChange={(e) => setGroupSize(e.target.value)} disabled={!groupPrice.trim()}>
+                  {[2, 3, 4, 5].map((n) => <option key={n} value={n}>{n} people</option>)}
+                </Select>
+              </Field>
+            </div>
+            {groupPrice.trim() && Number(price) > 0 && (
+              <p className={cn("mt-3 text-sm", Number(groupPrice) < Number(price) ? "text-muted" : "font-medium text-sale")}>
+                {Number(groupPrice) < Number(price)
+                  ? `Each member saves TSh ${(Number(price) - Number(groupPrice)).toLocaleString()} (${Math.floor((1 - Number(groupPrice) / Number(price)) * 100)}%).`
+                  : "The group price must be lower than the price."}
+              </p>
+            )}
+          </section>
+        )}
 
         <section className={card}>
           <h2 className="mb-5 font-semibold">Inventory</h2>

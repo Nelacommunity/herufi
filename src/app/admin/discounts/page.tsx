@@ -1,4 +1,5 @@
 import { AdminPageHeader } from "@/components/admin/page-header";
+import { EngagementSettingsForm, type EngagementSettings } from "@/components/admin/engagement-settings";
 import { CouponManager, type Coupon, type CouponStats, type StaffOption } from "@/components/admin/coupon-manager";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth";
@@ -11,12 +12,14 @@ export default async function AdminDiscounts() {
   const manage = can(profile, "discounts.manage");
   const superAdmin = isSuperAdmin(profile);
   const supabase = await createClient();
-  const [{ data: coupons }, { data: report }, staff] = await Promise.all([
+  const [{ data: coupons }, { data: report }, staff, rewards] = await Promise.all([
     supabase.from("coupons").select("*").order("created_at", { ascending: false }),
     supabase.rpc("admin_coupon_report"),
     superAdmin
       ? supabase.from("profiles").select("user_id, full_name, email, role").in("role", ["admin", "super_admin"]).order("full_name")
       : Promise.resolve({ data: [] }),
+    // Missing until 0013_engagement.sql is applied; the rewards card is hidden then.
+    manage ? supabase.from("engagement_settings").select("*").maybeSingle() : Promise.resolve({ data: null }),
   ]);
   const stats = new Map(((report ?? []) as CouponStats[]).map((r) => [r.id, r]));
   return (
@@ -26,12 +29,14 @@ export default async function AdminDiscounts() {
           ? "Coupon codes, each assigned to a staff member so you can see the orders and revenue every code brings in."
           : "Your discount codes and the orders customers placed with them."} />
       <CouponManager
-        coupons={((coupons ?? []) as Coupon[]).map((c) => ({ ...c, stats: stats.get(c.id) }))}
+        // Shoppers' personal reward codes (check-in streaks) aren't staff codes.
+        coupons={((coupons ?? []) as (Coupon & { owner_user_id?: string | null })[]).filter((c) => !c.owner_user_id).map((c) => ({ ...c, stats: stats.get(c.id) }))}
         canManage={manage}
         isSuper={superAdmin}
         me={{ user_id: profile.user_id, name: profile.full_name ?? profile.email ?? "Me" }}
         staff={(staff.data ?? []) as StaffOption[]}
       />
+      {rewards.data && <EngagementSettingsForm settings={rewards.data as EngagementSettings} canEdit={manage} />}
     </>
   );
 }

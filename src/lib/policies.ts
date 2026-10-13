@@ -366,7 +366,7 @@ export const POLICY_TOPICS: HelpTopic[] = [
           "- To create your account, take payment, and buy, ship, clear and deliver your orders (performing our contract with you).",
           "- To give support, process returns and refunds, and prevent fraud (our legitimate interests and contract).",
           "- To keep tax and accounting records (legal obligation).",
-          "- To recommend products based on what you've viewed or bought (legitimate interests; you can clear your recently viewed list at any time).",
+          "- To recommend products based on what you've viewed, searched for, saved or bought, and how long you looked at them (legitimate interests). We keep this activity for up to 180 days. In the app you can turn personalisation off or clear your browsing history under Account → Settings.",
           "- To send offers and newsletters, only if you opt in. You can unsubscribe at any time in Settings or from any email (consent).",
         ] },
         { heading: "Who we share it with", body: [
@@ -417,7 +417,7 @@ export const POLICY_TOPICS: HelpTopic[] = [
           "- Kufungua akaunti yako, kupokea malipo, na kununua, kusafirisha, kutoa forodhani na kufikisha oda zako (kutekeleza mkataba wetu nawe).",
           "- Kutoa huduma kwa wateja, kushughulikia marejesho na kuzuia udanganyifu (maslahi yetu halali na mkataba).",
           "- Kutunza kumbukumbu za kodi na hesabu (wajibu wa kisheria).",
-          "- Kupendekeza bidhaa kulingana na ulichotazama au kununua (maslahi halali; unaweza kufuta orodha ya ulivyotazama wakati wowote).",
+          "- Kupendekeza bidhaa kulingana na ulichotazama, kutafuta, kuhifadhi au kununua, na muda uliotumia kuzitazama (maslahi halali). Tunahifadhi taarifa hizi hadi siku 180. Kwenye programu unaweza kuzima mapendekezo binafsi au kufuta historia yako kupitia Akaunti → Mipangilio.",
           "- Kukutumia ofa na jarida, ukikubali tu. Unaweza kujiondoa wakati wowote kwenye Mipangilio au kwenye barua pepe yoyote (ridhaa).",
         ] },
         { heading: "Tunawashirikisha nani", body: [

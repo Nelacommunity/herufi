@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -9,6 +10,7 @@ import { CATALOG_TAG } from "@/lib/supabase/public";
 import { ORDER_STATUSES } from "@/lib/constants";
 import type { ActionResult } from "@/lib/types";
 import { slugify } from "@/lib/utils";
+import { sendPendingPushes } from "@/lib/push";
 
 /**
  * Every admin action re-checks the caller's permission server-side; Row Level Security (has_permission())
@@ -72,6 +74,9 @@ const productSchema = z.object({
   width_cm: z.coerce.number().positive("Width must be greater than 0").max(1000),
   height_cm: z.coerce.number().positive("Height must be greater than 0").max(1000),
   shipping_methods: z.array(z.enum(["standard", "express", "sea"])).min(1, "Allow at least one shipping method"),
+  // Group buying (0013): price when `group_size` people buy together. null = no group deal.
+  group_price: z.coerce.number().positive("Group price must be greater than 0").max(1000000).nullable().optional(),
+  group_size: z.coerce.number().int().min(2).max(5).optional(),
   images: z.array(imageSchema).max(12),
   variants: z.array(variantSchema).max(50),
 });
@@ -80,8 +85,9 @@ export type ProductPayload = z.input<typeof productSchema>;
 export async function saveProduct(payload: ProductPayload): Promise<ActionResult<{ id: string }>> {
   const parsed = productSchema.safeParse(payload);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Please check the form." };
-  const { id, images, variants, ...p } = parsed.data;
+  const { id, images, variants, group_price, group_size, ...p } = parsed.data;
   if (p.compare_at_price != null && p.compare_at_price <= p.price) p.compare_at_price = null;
+  if (group_price != null && group_price >= p.price) return { ok: false, error: "The group price must be lower than the normal price." };
   let supabase;
   try { supabase = await admin(id ? "products.edit" : "products.create"); } catch (e) { return fail(e, "You do not have permission to do that."); }
 
@@ -129,6 +135,17 @@ export async function saveProduct(payload: ProductPayload): Promise<ActionResult
       if (error?.code === "42703" && photos) { photos = false; ({ error } = await write(base)); }
       if (error) throw error;
     }
+
+    // Group deal, saved separately so databases without 0013_engagement.sql can still save products.
+    if (group_price !== undefined) {
+      const { error } = await supabase.from("products").update({ group_price, group_size: group_size ?? 2 }).eq("id", productId!);
+      if (error?.code === "42703") {
+        if (group_price != null) throw new Error("Group buying needs the 0013_engagement.sql migration. Run it in Supabase first.");
+      } else if (error) throw error;
+    }
+
+    // Price drops and restocks queue alerts for shoppers who saved this product; send them now.
+    after(() => sendPendingPushes().catch((e) => console.error("[push]", e)));
 
     refreshCatalog();
     return { ok: true, data: { id: productId! }, message: id ? "Product updated" : "Product created" };
@@ -398,4 +415,33 @@ export async function bulkDelete(kind: BulkKind, ids: string[]): Promise<ActionR
   const noun = { products: "product", categories: "category", coupons: "discount code" }[kind];
   const plural = kind === "categories" ? (count === 1 ? "category" : "categories") : `${noun}${count === 1 ? "" : "s"}`;
   return { ok: true, data: { count }, message: `Deleted ${count} ${plural}` };
+}
+
+// Engagement settings (0013): daily check-in rewards and group deal timing -----------------------
+
+const engagementSchema = z.object({
+  checkin_enabled: z.string().optional(),
+  checkin_cycle: z.coerce.number().int().min(2, "A streak needs at least 2 days").max(30),
+  checkin_reward_type: z.enum(["percentage", "fixed"]),
+  checkin_reward_value: z.coerce.number().positive("Reward must be greater than 0").max(1000000),
+  checkin_min_subtotal: z.coerce.number().min(0).max(100000000),
+  checkin_coupon_days: z.coerce.number().int().min(1).max(90),
+  group_hours: z.coerce.number().int().min(1).max(168),
+  group_price_days: z.coerce.number().int().min(1).max(30),
+}).refine((s) => s.checkin_reward_type !== "percentage" || s.checkin_reward_value <= 100, { message: "Percentage can't exceed 100" });
+
+export async function saveEngagementSettings(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const parsed = engagementSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  return guarded(async () => {
+    const supabase = await admin("discounts.manage");
+    const { checkin_enabled, ...rest } = parsed.data;
+    const { data, error } = await supabase.from("engagement_settings")
+      .update({ ...rest, checkin_enabled: checkin_enabled === "on", updated_at: new Date().toISOString() })
+      .eq("id", true).select("id");
+    if (error) return fail(error, "We couldn't save these settings.");
+    if (!data?.length) return { ok: false, error: "You do not have permission to do that." };
+    revalidatePath("/admin/discounts");
+    return { ok: true, message: "Rewards updated" };
+  });
 }

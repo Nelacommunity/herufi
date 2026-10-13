@@ -16,10 +16,12 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const { profile } = await requirePermission("products.edit", "products.delete", "questions.answer");
   const supabase = await createClient();
-  const [{ data }, { data: categories }, { data: questions }] = await Promise.all([
+  const [{ data }, { data: categories }, { data: questions }, deal] = await Promise.all([
     supabase.from("products").select(PRODUCT_SELECT).eq("id", id).maybeSingle(),
     supabase.from("categories").select("*").order("sort_order"),
     supabase.from("product_questions").select("id, author_name, question, answer, answered_at, created_at").eq("product_id", id).order("created_at", { ascending: false }),
+    // Group deal columns arrive with 0013_engagement.sql; without them the form hides the section.
+    supabase.from("products").select("group_price, group_size").eq("id", id).maybeSingle(),
   ]);
   if (!data) notFound();
   const product = await withVariantImages(supabase, toProduct(data));
@@ -27,7 +29,8 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
     <>
       <Link href="/admin/products" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Products</Link>
       <AdminPageHeader title={product.name} description={`${product.sales_count.toLocaleString()} sold · ${product.review_count} reviews · ${product.rating.toFixed(1)}★`} />
-      <ProductForm product={product} categories={categories ?? []} canEdit={can(profile, "products.edit")} canDelete={can(profile, "products.delete")} />
+      <ProductForm product={product} categories={categories ?? []}
+        groupDeal={deal.error ? undefined : { price: deal.data?.group_price == null ? null : Number(deal.data.group_price), size: Number(deal.data?.group_size ?? 2) }} canEdit={can(profile, "products.edit")} canDelete={can(profile, "products.delete")} />
       {questions && questions.length > 0 && can(profile, "questions.answer") && <QuestionAnswerList questions={questions} />}
     </>
   );
