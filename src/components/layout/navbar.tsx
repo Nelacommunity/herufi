@@ -21,7 +21,7 @@ export function Navbar() {
   const { t } = useI18n();
   const links = [
     { href: "/products?sort=newest", label: t.nav.newIn },
-    ...NAV_CATEGORIES.map((slug) => ({ href: `/categories/${slug}`, label: t.categories[slug] })),
+    ...NAV_CATEGORIES.map((slug) => ({ href: `/categories/${slug}`, label: t.nav.categoryShort[slug] ?? t.categories[slug] })),
     { href: "/products?deals=1", label: t.nav.deals, sale: true },
   ];
   const [scrolled, setScrolled] = useState(false);

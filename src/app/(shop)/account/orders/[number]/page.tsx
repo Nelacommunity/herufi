@@ -35,7 +35,7 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
         </div>
         <OrderStatusBadge status={order.status} className="text-sm" />
       </div>
-      <div className="rounded-2xl border border-border p-5 sm:p-6"><OrderTimeline status={order.status} /></div>
+      <div className="rounded-2xl border border-border p-5 sm:p-6"><OrderTimeline status={order.status} shipDate={order.ship_date} /></div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl bg-surface-2 p-5 text-sm"><MapPin className="h-5 w-5" /><p className="mt-3 font-medium">{a.shippingAddress}</p><p className="mt-1 text-muted">{addr.full_name}<br />{addr.line1}{addr.line2 ? `, ${addr.line2}` : ""}<br />{addr.city}{addr.region ? `, ${addr.region}` : ""} {addr.postal_code}{addr.phone && <><br />{addr.phone}</>}</p></div>

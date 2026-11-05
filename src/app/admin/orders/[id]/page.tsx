@@ -4,10 +4,12 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, CreditCard, Mail, MapPin, Truck, User } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { OrderStatusSelect } from "@/components/admin/order-status-select";
+import { ShipDateSelect } from "@/components/admin/ship-batch";
 import { OrderTimeline } from "@/components/account/order-status";
 import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { batchDatesAfter, currentBatchDate, formatShipDate } from "@/lib/shipping";
 import en from "@/i18n/dictionaries/en";
 import type { Order } from "@/lib/types";
 import { formatDate, formatPrice } from "@/lib/utils";
@@ -32,7 +34,7 @@ export default async function AdminOrderDetail({ params }: PageProps<"/admin/ord
       <AdminPageHeader title={`Order ${order.order_number}`} description={`Placed ${formatDate(order.created_at, "long")} · Updated ${formatDate(order.updated_at)}`} actions={can(profile, "orders.update") ? <OrderStatusSelect id={order.id} status={order.status} /> : undefined} />
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
-          <div className={card}><OrderTimeline status={order.status} /></div>
+          <div className={card}><OrderTimeline status={order.status} shipDate={order.ship_date} /></div>
           <div className="overflow-hidden rounded-2xl border border-border bg-surface">
             <ul className="divide-y divide-border">
               {order.items.map((i) => (
@@ -70,6 +72,10 @@ export default async function AdminOrderDetail({ params }: PageProps<"/admin/ord
           <section className={card}>
             <h2 className="flex items-center gap-2 text-sm font-semibold"><Truck className="h-4 w-4" /> Delivery</h2>
             <p className="mt-3 text-sm text-muted">{en.checkout.deliveryMethods[order.delivery_method]?.label ?? order.delivery_method} · {formatPrice(order.shipping)}</p>
+            <p className="mt-3 text-sm">{order.status === "shipped" || order.status === "delivered" ? "Left China with the" : "Ships with the"} <span className="font-medium">{formatShipDate(order.ship_date, "en-GB", { day: "numeric", month: "long", year: "numeric" })}</span> batch</p>
+            {can(profile, "orders.update") && ["pending", "confirmed", "processing"].includes(order.status) && (
+              <ShipDateSelect id={order.id} value={order.ship_date} options={batchDatesAfter(currentBatchDate(), 4)} />
+            )}
           </section>
           <section className={card}>
             <h2 className="flex items-center gap-2 text-sm font-semibold"><CreditCard className="h-4 w-4" /> Payment</h2>

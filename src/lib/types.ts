@@ -168,6 +168,8 @@ export interface Order {
   total: number;
   coupon_code: string | null;
   delivery_method: DeliveryMethod;
+  /** Batch date (YYYY-MM-DD) the order leaves the China warehouse. */
+  ship_date: string;
   shipping_saved?: number;
   shipping_address: Omit<Address, "id" | "label" | "is_default">;
   payment_method: { brand?: string; last4?: string };

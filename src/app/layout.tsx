@@ -9,6 +9,7 @@ import { themeScript } from "@/components/layout/theme-toggle";
 import { InlineScript } from "@/components/layout/inline-script";
 import { SITE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/env";
+import { CORE_KEYWORDS } from "@/lib/seo-keywords";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -23,8 +24,11 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { default: title, template: `%s · ${SITE.name}` },
     description: t.meta.description,
     applicationName: SITE.name,
-    keywords: t.meta.keywords,
-    openGraph: { type: "website", siteName: SITE.name, title, description: t.meta.description, url: "/", locale: locale === "sw" ? "sw_TZ" : "en_TZ" },
+    keywords: CORE_KEYWORDS[locale],
+    authors: [{ name: SITE.name, url: SITE_URL }],
+    creator: SITE.name,
+    publisher: SITE.name,
+    openGraph: { type: "website", siteName: SITE.name, title, description: t.meta.description, locale: locale === "sw" ? "sw_TZ" : "en_TZ" },
     twitter: { card: "summary_large_image", title, description: t.meta.description },
     robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 } },
     category: "shopping",
@@ -32,6 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
     appleWebApp: { title: SITE.name, statusBarStyle: "default" },
     // Local relevance signals for Tanzania.
     other: { "geo.region": "TZ-02", "geo.placename": "Dar es Salaam", "geo.position": "-6.7924;39.2083", ICBM: "-6.7924, 39.2083" },
+    alternates: { types: { "text/plain": [{ url: "/llms.txt", title: "LLM-friendly site summary" }] } },
   };
 }
 

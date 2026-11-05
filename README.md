@@ -21,6 +21,8 @@ Buy direct from China, delivered to Tanzania. A bilingual (English / Kiswahili) 
    - Redirect URLs: `http://localhost:3000/auth/callback`, `https://your-domain/auth/callback`
    - Google: enable the provider, then set `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true`.
 
+**Deploying to a VPS with Coolify** (app + self-hosted Supabase): see [`docs/DEPLOY-COOLIFY.md`](docs/DEPLOY-COOLIFY.md).
+
 `pnpm db:migrate` applies only new migrations. `pnpm db:seed` reloads the demo catalog, which **replaces** products, categories, reviews, coupons and orders. Edit `scripts/seed/catalog.mjs` and run `pnpm db:seed:build` to regenerate `supabase/seed.sql`.
 
 ## Demo data

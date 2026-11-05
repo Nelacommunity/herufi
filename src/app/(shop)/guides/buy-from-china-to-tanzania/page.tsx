@@ -7,7 +7,7 @@ import { FaqList, faqJsonLd } from "@/components/seo/faq-list";
 import { getI18n } from "@/i18n/server";
 import { getShippingExamples, getShippingRates } from "@/lib/queries/catalog";
 import { GUIDE_SLUG, GUIDE_UPDATED, guideContent, homeFaq, shippingFacts } from "@/lib/seo-content";
-import { absoluteUrl, jsonLd, pageAlternates } from "@/lib/seo";
+import { absoluteUrl, jsonLd, pageAlternates, socialMeta } from "@/lib/seo";
 import { SITE } from "@/lib/constants";
 import { formatDate, formatPrice } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: g.metaTitle,
     description: g.description,
     alternates: pageAlternates(PATH, locale),
-    openGraph: { type: "article", title: g.title, description: g.description, url: PATH, publishedTime: "2026-10-01", modifiedTime: GUIDE_UPDATED },
+    ...socialMeta({ title: g.title, description: g.description, path: PATH, locale, type: "article", publishedTime: "2026-10-01", modifiedTime: GUIDE_UPDATED }),
   };
 }
 

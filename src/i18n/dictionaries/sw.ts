@@ -51,6 +51,7 @@ const sw: Dictionary = {
   },
   nav: {
     newIn: "Mpya",
+    categoryShort: { computers: "Kompyuta" },
     deals: "Ofa",
     openMenu: "Fungua menyu",
     menu: "Menyu",
@@ -80,6 +81,7 @@ const sw: Dictionary = {
     accessories: "Vifaa vya ziada",
     sports: "Michezo na Nje",
     kitchen: "Jikoni na Mezani",
+    computers: "Kompyuta na Gaming",
   },
   categoryDescriptions: {
     electronics: "Vifaa vya sauti, saa janja na teknolojia ya mezani, moja kwa moja kutoka Shenzhen.",
@@ -90,8 +92,9 @@ const sw: Dictionary = {
     accessories: "Saa, mikoba, vito na mapambo madogo.",
     sports: "Vifaa vya mazoezi, matembezi na zaidi.",
     kitchen: "Vyombo vya udongo na vifaa vya jikoni.",
+    computers: "Laptop, kompyuta za gaming, skrini na vifaa vyake kwa kazi na burudani.",
   },
-  optionNames: { Size: "Saizi", Color: "Rangi", Memory: "Kumbukumbu", Case: "Ukubwa", Switch: "Swichi", Scent: "Harufu", Strap: "Mkanda" },
+  optionNames: { Option: "Chaguo", Size: "Saizi", Color: "Rangi", Memory: "Kumbukumbu", Case: "Ukubwa", Switch: "Swichi", Scent: "Harufu", Strap: "Mkanda" },
   search: {
     placeholder: "Tafuta bidhaa, chapa na makundi",
     clear: "Futa utafutaji",
@@ -532,6 +535,8 @@ const sw: Dictionary = {
     readReturns: "sera ya kurudisha bidhaa",
     orReadOur: "au soma",
     cancelledNote: "Oda hii imeghairiwa. Malipo yoyote yamerudishwa.",
+    shipsOn: "Itaondoka China na mzigo wa {date}. Tunasafirisha tarehe 14 na 28 kila mwezi.",
+    shippedOn: "Iliondoka China na mzigo wa {date}.",
     addresses: {
       title: "Anwani",
       add: "Ongeza anwani",
@@ -644,8 +649,11 @@ const sw: Dictionary = {
     allInclude: "Kila njia inajumuisha kutoa mzigo forodhani na kufikishwa Tanzania.",
     method: "Njia ya usafirishaji",
     error: "Hatukuweza kuhesabu gharama za usafirishaji sasa hivi. Tafadhali jaribu tena.",
+    batch: "Mzigo unaofuata unaondoka China {date}",
+    batchCutoff: "Tunasafirisha tarehe 14 na 28 kila mwezi. Oda zilizowekwa hadi {cutoff} zinaingia kwenye mzigo huu.",
   },
-  status: { pending: "Inasubiri", confirmed: "Imethibitishwa", processing: "Inaandaliwa", shipped: "Iko njiani", delivered: "Imefikishwa", cancelled: "Imeghairiwa" },
+  statusHint: { confirmed: "Malipo yamepokelewa", processing: "Iko ghalani kwetu China", shipped: "Iko njiani kuja Tanzania", delivered: "Umekabidhiwa" },
+  status: { pending: "Inasubiri", confirmed: "Imethibitishwa", processing: "Imefungashwa", shipped: "Iko njiani", delivered: "Imefikishwa", cancelled: "Imeghairiwa" },
   errors: {
     notFoundEyebrow: "Hitilafu 404",
     notFoundTitle: "Umepotea njia?",

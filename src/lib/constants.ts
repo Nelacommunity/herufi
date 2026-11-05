@@ -7,6 +7,12 @@ export const SITE = {
     "Buy direct from verified factories in China and get it delivered across Tanzania. Customs handled, pay in shillings with M-Pesa or card.",
   email: "hello@herufi.co.tz",
   phone: "+255 754 000 123",
+  /**
+   * Official profiles (Instagram, TikTok, Facebook, X, YouTube, LinkedIn, Google Business Profile…).
+   * Listed as schema.org `sameAs` so Google and AI assistants can tie them to the same business.
+   * Comma-separated in NEXT_PUBLIC_SOCIAL_LINKS.
+   */
+  social: (process.env.NEXT_PUBLIC_SOCIAL_LINKS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
 };
 
 export const PAGE_SIZE = 24;
@@ -30,7 +36,7 @@ export const ORDER_STATUSES: OrderStatus[] = ["pending", "confirmed", "processin
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   pending: "Pending",
   confirmed: "Confirmed",
-  processing: "Processing",
+  processing: "Packed",
   shipped: "In transit",
   delivered: "Delivered",
   cancelled: "Cancelled",
@@ -38,4 +44,4 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
 
 export const POPULAR_SEARCHES = ["Headphones", "Boots", "Running shoes", "Vitamin C", "Candle", "Leather bag"];
 
-export const NAV_CATEGORIES = ["fashion", "electronics", "home", "beauty"];
+export const NAV_CATEGORIES = ["fashion", "electronics", "computers", "home", "beauty"];

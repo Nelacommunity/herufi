@@ -11,6 +11,7 @@ import { formatPrice } from "@/lib/utils";
 import { SITE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/env";
 import { jsonLd } from "@/lib/seo";
+import { categoryName } from "@/lib/utils";
 
 export default async function ShopLayout({ children }: LayoutProps<"/">) {
   const [categories, promo, { t }] = await Promise.all([getCategories(), getFreeShippingPromo(), getI18n()]);
@@ -27,6 +28,18 @@ export default async function ShopLayout({ children }: LayoutProps<"/">) {
     image: `${SITE_URL}/opengraph-image`,
     description: SITE.description,
     slogan: "Factory prices. Delivered to Tanzania.",
+    ...(SITE.social.length > 0 && { sameAs: SITE.social }),
+    // Topics the business is an authority on: helps AI engines decide when to cite Herufi.
+    knowsAbout: [
+      "Buying from China to Tanzania", "Shipping from China to Tanzania", "Sea freight from China to Dar es Salaam",
+      "Air cargo from China to Tanzania", "Customs clearance in Tanzania", "Import duty and VAT in Tanzania",
+      "Online shopping in Tanzania", "Mobile money payments (M-Pesa, Tigo Pesa, Airtel Money)",
+    ],
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: "Herufi catalog",
+      itemListElement: categories.map((c) => ({ "@type": "OfferCatalog", name: categoryName(t.categories, c), url: `${SITE_URL}/categories/${c.slug}` })),
+    },
     email: SITE.email,
     telephone: SITE.phone,
     address: { "@type": "PostalAddress", streetAddress: "Mikocheni B", addressLocality: "Dar es Salaam", addressRegion: "Dar es Salaam", addressCountry: "TZ" },

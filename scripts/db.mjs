@@ -15,7 +15,9 @@ if (!url || url.includes('YOUR-PROJECT-REF')) {
   process.exit(1);
 }
 
-const client = new pg.Client({ connectionString: url, ssl: url.includes('localhost') || url.includes('127.0.0.1') ? false : { rejectUnauthorized: false } });
+// Self-hosted Postgres (e.g. Supabase on Coolify) usually has no TLS: add ?sslmode=disable to the URL.
+const noSsl = url.includes('localhost') || url.includes('127.0.0.1') || /sslmode=disable/.test(url);
+const client = new pg.Client({ connectionString: url.replace(/[?&]sslmode=disable/, ''), ssl: noSsl ? false : { rejectUnauthorized: false } });
 await client.connect();
 
 async function migrate() {

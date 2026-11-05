@@ -1,7 +1,9 @@
 "use client";
 
-import { Check, Circle, X } from "lucide-react";
+import { Check, Circle, Ship, X } from "lucide-react";
 import { useI18n } from "@/i18n/client";
+import { fmt, INTL_LOCALE } from "@/i18n/config";
+import { formatShipDate } from "@/lib/shipping";
 import type { OrderStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -25,13 +27,16 @@ export function OrderStatusBadge({ status, className }: { status: OrderStatus; c
 
 const FLOW: OrderStatus[] = ["confirmed", "processing", "shipped", "delivered"];
 
-export function OrderTimeline({ status }: { status: OrderStatus }) {
-  const { t } = useI18n();
+/** pending → confirmed → packed (in the China warehouse) → in transit (batch has left) → delivered. */
+export function OrderTimeline({ status, shipDate }: { status: OrderStatus; shipDate?: string }) {
+  const { t, locale } = useI18n();
   if (status === "cancelled") {
     return <p className="flex items-center gap-2 rounded-xl bg-sale-soft px-4 py-3 text-sm font-medium text-sale"><X className="h-4 w-4" /> {t.account.cancelledNote}</p>;
   }
   const current = status === "pending" ? -1 : FLOW.indexOf(status);
+  const batch = shipDate && formatShipDate(shipDate, INTL_LOCALE[locale], { day: "numeric", month: "long" });
   return (
+    <>
     <ol className="grid grid-cols-4 gap-2">
       {FLOW.map((s, i) => {
         const reached = i <= current;
@@ -44,9 +49,17 @@ export function OrderTimeline({ status }: { status: OrderStatus }) {
               {i < FLOW.length - 1 && <span className={cn("h-0.5 flex-1 rounded-full", i < current ? "bg-foreground" : "bg-border")} />}
             </div>
             <span className={cn("text-xs font-medium sm:text-sm", reached ? "text-foreground" : "text-subtle")}>{t.status[s]}</span>
+            <span className="hidden text-xs text-subtle sm:block">{t.statusHint[s]}</span>
           </li>
         );
       })}
     </ol>
+    {batch && status !== "delivered" && (
+      <p className="mt-5 flex items-start gap-2 border-t border-border pt-4 text-sm text-muted">
+        <Ship className="mt-0.5 h-4 w-4 shrink-0" />
+        {fmt(status === "shipped" ? t.account.shippedOn : t.account.shipsOn, { date: batch })}
+      </p>
+    )}
+    </>
   );
 }

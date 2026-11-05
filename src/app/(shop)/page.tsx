@@ -12,7 +12,7 @@ import Link from "next/link";
 import { getCategories, getSection, getShippingRates } from "@/lib/queries/catalog";
 import { FaqList, faqJsonLd } from "@/components/seo/faq-list";
 import { GUIDE_SLUG, SEO_COPY, homeFaq, shippingFacts } from "@/lib/seo-content";
-import { jsonLd, pageAlternates } from "@/lib/seo";
+import { jsonLd, pageAlternates, socialMetaWithImage } from "@/lib/seo";
 import { SITE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/env";
 import { getI18n } from "@/i18n/server";
@@ -25,7 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description: copy.homeDescription,
     keywords: [...copy.keywords],
     alternates: pageAlternates("/", locale),
-    openGraph: { title: copy.homeTitle, description: copy.homeDescription, url: "/" },
+    ...socialMetaWithImage({ title: copy.homeTitle, description: copy.homeDescription, path: "/", locale }),
   };
 }
 
@@ -47,7 +47,10 @@ export default async function HomePage() {
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
       name: SITE.name,
+      alternateName: ["Herufi Tanzania", "herufi.co.tz"],
+      publisher: { "@id": `${SITE_URL}/#organization` },
       url: SITE_URL,
       inLanguage: ["en-TZ", "sw-TZ"],
       description: SEO_COPY[locale].homeDescription,

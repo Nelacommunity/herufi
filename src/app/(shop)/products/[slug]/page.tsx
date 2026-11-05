@@ -11,8 +11,10 @@ import { ReviewsSection } from "@/components/product/reviews-section";
 import { QuestionsSection } from "@/components/product/questions-section";
 import { ProductRail } from "@/components/product/product-grid";
 import { getProductBySlug, getProductShippingOptions, getQuestions, getRelatedProducts, getReviews, getShippingRates } from "@/lib/queries/catalog";
-import { SEO_COPY } from "@/lib/seo-content";
-import { jsonLd, pageAlternates } from "@/lib/seo";
+import { SEO_COPY, productFaq } from "@/lib/seo-content";
+import { clampDescription, productKeywords } from "@/lib/seo-keywords";
+import { FaqList, faqJsonLd } from "@/components/seo/faq-list";
+import { jsonLd, pageAlternates, socialMeta } from "@/lib/seo";
 import { fmt } from "@/i18n/config";
 import { formatPrice } from "@/lib/utils";
 import { isInStock } from "@/lib/queries/shared";
@@ -27,21 +29,13 @@ export async function generateMetadata({ params }: PageProps<"/products/[slug]">
   if (!product) return { title: "404", robots: { index: false } };
   const copy = SEO_COPY[locale];
   const lead = `${product.description.split(". ")[0].replace(/\.$/, "")}.`;
-  const description = copy.productDescription(product.name, product.brand, formatPrice(product.price), lead).slice(0, 300);
-  const image = product.images[0];
+  const description = clampDescription(copy.productDescription(product.name, product.brand, formatPrice(product.price), lead), 300);
   return {
     title: copy.productTitle(product.name),
     description,
-    keywords: [product.name, product.brand, `${product.name} price in Tanzania`, `${product.name} bei Tanzania`, product.category?.name ?? "", "buy from China Tanzania"].filter(Boolean),
+    keywords: productKeywords(product.name, product.brand, product.category?.name),
     alternates: pageAlternates(`/products/${product.slug}`, locale),
-    openGraph: {
-      type: "website",
-      title: product.name,
-      description,
-      url: `/products/${product.slug}`,
-      images: image ? [{ url: image.image_url.replace("w=1600", "w=1200"), width: 1200, height: 1500, alt: image.alt_text || product.name }] : undefined,
-    },
-    twitter: { card: "summary_large_image", title: product.name, description, images: image ? [image.image_url] : undefined },
+    ...socialMeta({ title: `${product.name} · ${formatPrice(product.price)}`, description, path: `/products/${product.slug}`, locale }),
     other: { "product:price:amount": product.price.toFixed(2), "product:price:currency": "TZS" },
   };
 }
@@ -63,15 +57,22 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const [reviews, questions, related, rates, shippingOptions, { t }] = await Promise.all([getReviews(product.id), getQuestions(product.id), getRelatedProducts(product), getShippingRates(), getProductShippingOptions(product.id, product.price), getI18n()]);
+  const [reviews, questions, related, rates, shippingOptions, { t, locale }] = await Promise.all([getReviews(product.id), getQuestions(product.id), getRelatedProducts(product), getShippingRates(), getProductShippingOptions(product.id, product.price), getI18n()]);
   const s = t.shipping;
   const seaPromo = product.shipping_methods.includes("sea") ? rates.find((r) => r.method === "sea" && r.free_over != null) : undefined;
   const p = t.product;
   const inStock = isInStock(product);
 
+  const available = shippingOptions.filter((o) => o.available);
+  const faq = productFaq(locale, { name: product.name, price: product.price, inStock }, available.map((o) => ({
+    method: o.method, label: t.shipping.methods[o.method]?.label ?? o.method, price: o.price, eta_min: o.eta_min, eta_max: o.eta_max,
+  })));
+  const productUrl = `${SITE_URL}/products/${product.slug}`;
+
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
+    "@id": `${productUrl}#product`,
     name: product.name,
     description: product.description,
     sku: product.sku ?? undefined,
@@ -84,11 +85,17 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
       url: `${SITE_URL}/products/${product.slug}`,
       priceCurrency: "TZS",
       price: product.price.toFixed(2),
+      ...(product.compare_at_price && product.compare_at_price > product.price && {
+        priceSpecification: [
+          { "@type": "UnitPriceSpecification", price: product.price.toFixed(2), priceCurrency: "TZS" },
+          { "@type": "UnitPriceSpecification", priceType: "https://schema.org/StrikethroughPrice", price: product.compare_at_price.toFixed(2), priceCurrency: "TZS" },
+        ],
+      }),
       availability: inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
       priceValidUntil: `${new Date().getFullYear() + 1}-12-31`,
       seller: { "@id": `${SITE_URL}/#organization`, "@type": "Organization", name: SITE.name },
-      shippingDetails: shippingOptions.filter((o) => o.available).map((o) => ({
+      shippingDetails: available.map((o) => ({
         "@type": "OfferShippingDetails",
         shippingLabel: t.shipping.methods[o.method]?.label ?? o.method,
         shippingRate: { "@type": "MonetaryAmount", value: o.price, currency: "TZS" },
@@ -104,6 +111,7 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
         applicableCountry: "TZ",
         returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
         merchantReturnDays: 14,
+        returnMethod: "https://schema.org/ReturnInStore",
         returnFees: "https://schema.org/FreeReturn",
       },
     },
@@ -126,7 +134,7 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
 
   return (
     <div className="pb-8">
-      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(productSchema)} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd([productSchema, faqJsonLd(faq, locale === "sw" ? "sw-TZ" : "en-TZ")])} />
       <div className="container-page pt-4 sm:pt-8">
         <div className="hidden sm:block">
           <Breadcrumbs items={[
@@ -193,6 +201,10 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
             <Disclosure title={p.returnsPolicy}>
               <p>{p.returnsPolicyText}</p>
             </Disclosure>
+            <section className="mt-12" aria-labelledby="product-faq">
+              <h2 id="product-faq" className="mb-2 text-lg font-semibold">{locale === "sw" ? "Maswali ya haraka" : "Quick answers"}</h2>
+              <FaqList items={faq} />
+            </section>
           </div>
           <div className="space-y-16">
             <QuestionsSection questions={questions} productId={product.id} slug={product.slug} />

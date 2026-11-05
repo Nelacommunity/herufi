@@ -6,7 +6,7 @@ import { sendPendingPushes } from "@/lib/push";
 /**
  * Sends pending notifications to phones (see src/lib/push.ts). It only delivers what the database has already
  * queued, so calling it early is harmless.
- *   GET  — Vercel Cron, with `Authorization: Bearer $CRON_SECRET`.
+ *   GET  — a scheduled job (Coolify scheduled task or Vercel Cron), with `Authorization: Bearer $CRON_SECRET`.
  *   POST — the apps, right after something that may queue a notification, with the shopper's or admin's
  *          `Authorization: Bearer <access token>`.
  */

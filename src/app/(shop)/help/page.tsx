@@ -3,11 +3,11 @@ import { ArrowUpRight } from "lucide-react";
 import { HELP_TOPICS, type HelpTopic } from "@/lib/help";
 import { fillBusiness } from "@/lib/business";
 import { getI18n } from "@/i18n/server";
-import { pageAlternates } from "@/lib/seo";
+import { pageAlternates, socialMetaWithImage } from "@/lib/seo";
 
 export async function generateMetadata() {
   const { t, locale } = await getI18n();
-  return { title: t.help.crumb, description: t.help.desc, alternates: pageAlternates("/help", locale) };
+  return { title: t.help.crumb, description: t.help.desc, alternates: pageAlternates("/help", locale), ...socialMetaWithImage({ title: t.help.title, description: t.help.desc, path: "/help", locale }) };
 }
 
 export default async function HelpIndex() {

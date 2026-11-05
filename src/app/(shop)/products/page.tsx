@@ -7,7 +7,7 @@ import { getI18n } from "@/i18n/server";
 import { fmt } from "@/i18n/config";
 import { categoryName } from "@/lib/utils";
 import { SEO_COPY } from "@/lib/seo-content";
-import { pageAlternates } from "@/lib/seo";
+import { pageAlternates, socialMetaWithImage } from "@/lib/seo";
 
 export async function generateMetadata({ searchParams }: PageProps<"/products">): Promise<Metadata> {
   const [f, { t, locale }] = [parseFilters(await searchParams), await getI18n()];
@@ -16,7 +16,8 @@ export async function generateMetadata({ searchParams }: PageProps<"/products">)
   const copy = SEO_COPY[locale];
   const title = f.deals ? t.catalog.deals : cat ? categoryName(t.categories, cat) : f.sort === "newest" ? t.catalog.newArrivals : copy.productsTitle;
   // Filtered and sorted views consolidate to the clean listing (or the category page) for search engines.
-  return { title, description: copy.productsDescription, alternates: pageAlternates(cat ? `/categories/${cat.slug}` : "/products", locale) };
+  const path = cat ? `/categories/${cat.slug}` : "/products";
+  return { title, description: copy.productsDescription, alternates: pageAlternates(path, locale), ...socialMetaWithImage({ title, description: copy.productsDescription, path, locale }) };
 }
 
 export default async function ProductsPage({ searchParams }: PageProps<"/products">) {

@@ -51,6 +51,8 @@ const en = {
   },
   nav: {
     newIn: "New in",
+    /** Shorter labels for the top bar, where the full category name is too long. */
+    categoryShort: { computers: "Computers" } as Record<string, string>,
     deals: "Deals",
     openMenu: "Open menu",
     menu: "Menu",
@@ -80,6 +82,7 @@ const en = {
     accessories: "Accessories",
     sports: "Sports & Outdoors",
     kitchen: "Kitchen & Dining",
+    computers: "Computers & Gaming",
   } as Record<string, string>,
   categoryDescriptions: {
     electronics: "Audio, wearables and desk tech, straight from Shenzhen.",
@@ -90,8 +93,9 @@ const en = {
     accessories: "Watches, bags, jewellery and the finishing details.",
     sports: "Gear for training, trails and everything in between.",
     kitchen: "Ceramics and tools for slow mornings.",
+    computers: "Laptops, gaming PCs, monitors and peripherals for work and play.",
   } as Record<string, string>,
-  optionNames: { Size: "Size", Color: "Color", Memory: "Memory", Case: "Case", Switch: "Switch", Scent: "Scent", Strap: "Strap" } as Record<string, string>,
+  optionNames: { Option: "Option", Size: "Size", Color: "Color", Memory: "Memory", Case: "Case", Switch: "Switch", Scent: "Scent", Strap: "Strap" } as Record<string, string>,
   search: {
     placeholder: "Search products, brands and categories",
     clear: "Clear search",
@@ -532,6 +536,8 @@ const en = {
     readReturns: "returns policy",
     orReadOur: "or read our",
     cancelledNote: "This order was cancelled. Any payment has been refunded.",
+    shipsOn: "Leaves China with the {date} shipment. We ship on the 14th and 28th of every month.",
+    shippedOn: "Left China with the {date} shipment.",
     addresses: {
       title: "Addresses",
       add: "Add address",
@@ -644,8 +650,11 @@ const en = {
     allInclude: "Every option includes customs clearance and delivery in Tanzania.",
     method: "Shipping method",
     error: "We couldn't calculate shipping right now. Please try again.",
+    batch: "Next shipment leaves China {date}",
+    batchCutoff: "We ship on the 14th and 28th of every month. Orders placed by {cutoff} make this batch.",
   },
-  status: { pending: "Pending", confirmed: "Confirmed", processing: "Processing", shipped: "In transit", delivered: "Delivered", cancelled: "Cancelled" } as Record<string, string>,
+  statusHint: { confirmed: "Payment received", processing: "In our China warehouse", shipped: "On its way to Tanzania", delivered: "Handed to you" } as Record<string, string>,
+  status: { pending: "Pending", confirmed: "Confirmed", processing: "Packed", shipped: "In transit", delivered: "Delivered", cancelled: "Cancelled" } as Record<string, string>,
   errors: {
     notFoundEyebrow: "Error 404",
     notFoundTitle: "Lost your way?",

@@ -7,10 +7,12 @@ import { createClient } from "@/lib/supabase/server";
 import { assertAdmin, assertSuperAdmin } from "@/lib/auth";
 import { PERMISSIONS, type Permission } from "@/lib/permissions";
 import { CATALOG_TAG } from "@/lib/supabase/public";
-import { ORDER_STATUSES } from "@/lib/constants";
-import type { ActionResult } from "@/lib/types";
+import { ORDER_STATUSES, ORDER_STATUS_LABEL } from "@/lib/constants";
+import { SHIP_DAYS } from "@/lib/shipping";
+import type { ActionResult, OrderStatus } from "@/lib/types";
 import { slugify } from "@/lib/utils";
 import { sendPendingPushes } from "@/lib/push";
+import { consistentOptions } from "@/lib/variant-options";
 
 /**
  * Every admin action re-checks the caller's permission server-side; Row Level Security (has_permission())
@@ -88,6 +90,8 @@ export async function saveProduct(payload: ProductPayload): Promise<ActionResult
   const { id, images, variants, group_price, group_size, ...p } = parsed.data;
   if (p.compare_at_price != null && p.compare_at_price <= p.price) p.compare_at_price = null;
   if (group_price != null && group_price >= p.price) return { ok: false, error: "The group price must be lower than the normal price." };
+  // Rows like "800k: standard" + "398000K: ultimate" would show as separate options shoppers can't combine.
+  if (!consistentOptions(variants)) return { ok: false, error: 'Every option row needs the same option name. Put the shared name (e.g. "Model") in Option and the choice (e.g. "800k Standard") in Value.' };
   let supabase;
   try { supabase = await admin(id ? "products.edit" : "products.create"); } catch (e) { return fail(e, "You do not have permission to do that."); }
 
@@ -246,7 +250,37 @@ export async function updateOrderStatus(id: string, status: string): Promise<Act
     if (error) return fail(error, "We couldn't update this order.");
     revalidatePath("/admin/orders", "layout");
     revalidatePath("/admin");
-    return { ok: true, message: `Order marked as ${status}` };
+    return { ok: true, message: `Order marked as ${ORDER_STATUS_LABEL[status as OrderStatus].toLowerCase()}` };
+  });
+}
+
+const batchDate = z.iso.date().refine((d) => SHIP_DAYS.includes(Number(d.slice(8, 10))), "Batches ship on the 14th and 28th");
+
+/** Close a shipping batch: packed orders go in transit, orders not yet in the warehouse roll to the next batch. */
+export async function dispatchBatch(date: string): Promise<ActionResult> {
+  const parsed = batchDate.safeParse(date);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  return guarded(async () => {
+    const supabase = await admin("orders.update");
+    const { data, error } = await supabase.rpc("admin_dispatch_batch", { p_date: parsed.data }).single<{ shipped: number; rolled: number }>();
+    if (error) return fail(error, "We couldn't dispatch this batch.");
+    revalidatePath("/admin/orders", "layout");
+    revalidatePath("/admin");
+    const rolled = data.rolled ? `, ${data.rolled} moved to the next batch` : "";
+    return { ok: true, message: `${data.shipped} order${data.shipped === 1 ? "" : "s"} in transit${rolled}` };
+  });
+}
+
+/** Move one order to another batch (e.g. the supplier is late delivering to the warehouse). */
+export async function setOrderShipDate(id: string, date: string): Promise<ActionResult> {
+  const parsed = batchDate.safeParse(date);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  return guarded(async () => {
+    const supabase = await admin("orders.update");
+    const { error } = await supabase.from("orders").update({ ship_date: parsed.data }).eq("id", id);
+    if (error) return fail(error, "We couldn't reschedule this order.");
+    revalidatePath("/admin/orders", "layout");
+    return { ok: true, message: "Shipping batch updated" };
   });
 }
 

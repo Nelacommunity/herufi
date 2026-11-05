@@ -6,6 +6,7 @@
 import type { Locale } from "@/i18n/config";
 import type { ShippingRate } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
+import { CORE_KEYWORDS } from "@/lib/seo-keywords";
 
 type QA = { q: string; a: string };
 
@@ -40,28 +41,28 @@ const seaFreeText = (f: ShippingFacts, locale: Locale) => {
 // ---------------------------------------------------------------------------------
 export const SEO_COPY = {
   en: {
-    homeTitle: "Herufi | Buy from China, Delivered to Tanzania · Free Sea Shipping",
-    homeDescription: "Shop factory-direct from verified suppliers in China and get it delivered to your door in Dar es Salaam, Arusha, Mwanza and across Tanzania. Free sea shipping, customs cleared for you, prices in TZS, pay with M-Pesa or card.",
-    productsTitle: "Shop Electronics, Fashion & Home from China | Prices in TZS",
-    productsDescription: "Browse 50+ factory-direct products from China with prices in Tanzanian shillings. Free sea shipping to Tanzania, customs handled, pay with M-Pesa, Tigo Pesa, Airtel Money or card.",
+    homeTitle: "Online Shopping Tanzania: Buy from China, Delivered | Herufi",
+    homeDescription: "Buy direct from verified factories in China, delivered across Tanzania. Prices in TZS, customs cleared for you, free sea shipping, pay with M-Pesa or card.",
+    productsTitle: "Shop Online in Tanzania: Electronics, Fashion & Home",
+    productsDescription: "Shop factory-direct electronics, fashion, shoes, beauty and home goods from China, priced in TZS. Customs handled, delivery across Tanzania, pay with M-Pesa.",
     categoryTitle: (name: string) => `${name} from China, Delivered to Tanzania`,
     categoryDescription: (name: string, n: number) => `Buy ${name.toLowerCase()} direct from Chinese factories at factory prices. ${n} products, free sea shipping to Tanzania, customs handled and M-Pesa accepted.`,
-    productTitle: (name: string) => `${name}: Price in Tanzania`,
+    productTitle: (name: string) => `${name}: Price in Tanzania & Delivery`,
     productDescription: (name: string, brand: string, price: string, lead: string) =>
       `Buy ${name} by ${brand} for ${price} in Tanzania. ${lead} Shipped from China with free sea shipping, customs handled, pay with M-Pesa or card.`,
-    keywords: ["buy from China Tanzania", "shipping from China to Tanzania", "online shopping Tanzania", "import from China Tanzania", "cargo from China to Dar es Salaam", "M-Pesa online shopping", "free shipping Tanzania", "Herufi"],
+    keywords: CORE_KEYWORDS.en,
   },
   sw: {
-    homeTitle: "Herufi | Nunua kutoka China, Tunafikisha Tanzania · Usafirishaji wa Meli Bure",
-    homeDescription: "Nunua moja kwa moja kutoka viwanda vilivyothibitishwa China na tukuletee mlangoni Dar es Salaam, Arusha, Mwanza na Tanzania nzima. Usafirishaji wa meli bure, ushuru tunashughulikia, bei kwa shilingi, lipa kwa M-Pesa au kadi.",
-    productsTitle: "Nunua Elektroniki, Mitindo na Vya Nyumbani kutoka China | Bei kwa TSh",
-    productsDescription: "Tazama bidhaa 50+ kutoka viwandani China kwa bei za shilingi za Tanzania. Usafirishaji wa meli bure hadi Tanzania, ushuru tunashughulikia, lipa kwa M-Pesa, Tigo Pesa, Airtel Money au kadi.",
+    homeTitle: "Duka la Mtandaoni Tanzania: Nunua kutoka China | Herufi",
+    homeDescription: "Nunua moja kwa moja kutoka viwanda vya China, tunakuletea Tanzania nzima. Bei kwa shilingi, ushuru tunashughulikia, meli bure, lipa kwa M-Pesa au kadi.",
+    productsTitle: "Manunuzi Mtandaoni Tanzania: Elektroniki, Nguo na Samani",
+    productsDescription: "Nunua elektroniki, nguo, viatu, vipodozi na samani kutoka viwanda vya China kwa bei ya shilingi. Ushuru tunashughulikia, tunafikisha Tanzania nzima, lipa kwa M-Pesa.",
     categoryTitle: (name: string) => `${name} kutoka China, Tunafikisha Tanzania`,
     categoryDescription: (name: string, n: number) => `Nunua ${name.toLowerCase()} moja kwa moja kutoka viwanda vya China kwa bei ya kiwandani. Bidhaa ${n}, usafirishaji wa meli bure hadi Tanzania, ushuru tunashughulikia na M-Pesa inakubalika.`,
-    productTitle: (name: string) => `${name}: Bei Tanzania`,
+    productTitle: (name: string) => `${name}: Bei Tanzania na Usafirishaji`,
     productDescription: (name: string, brand: string, price: string, lead: string) =>
       `Nunua ${name} ya ${brand} kwa ${price} Tanzania. ${lead} Inasafirishwa kutoka China kwa meli bure, ushuru tunashughulikia, lipa kwa M-Pesa au kadi.`,
-    keywords: ["nunua kutoka China", "usafirishaji kutoka China hadi Tanzania", "manunuzi mtandaoni Tanzania", "kuagiza mzigo China", "cargo China Dar es Salaam", "lipa kwa M-Pesa", "usafirishaji bure Tanzania", "Herufi"],
+    keywords: CORE_KEYWORDS.sw,
   },
 } as const;
 
@@ -77,6 +78,9 @@ export function homeFaq(locale: Locale, f: ShippingFacts): QA[] {
       { q: "Je, nitalipa ushuru au VAT mzigo ukifika?", a: "Hapana. Ushuru wa forodha umejumuishwa kwenye bei, na VAT ya 18% inaonyeshwa wakati wa malipo. Hulipi chochote cha ziada mzigo ukifika." },
       { q: "Naweza kulipa kwa M-Pesa?", a: "Ndiyo. Tunapokea M-Pesa, Tigo Pesa, Airtel Money, HaloPesa, Visa na Mastercard, na bei zote ziko kwa shilingi za Tanzania (TZS)." },
       { q: "Mnafikisha wapi Tanzania?", a: "Tunafikisha mlangoni Dar es Salaam, Arusha, Mwanza na Dodoma. Miji mingine inahudumiwa kupitia vituo vya washirika ambapo msafirishaji atakupigia kupanga uchukuaji." },
+      { q: "Njia nafuu zaidi ya kusafirisha mzigo kutoka China hadi Tanzania ni ipi?", a: `Meli ndiyo njia nafuu zaidi: ${seaFreeText(f, "sw")}, na huchukua siku ${f.seaDays}. Ukihitaji haraka, ndege (cargo) huchukua siku ${f.airDays} kwa ${f.airRate} kwa kilo.` },
+      { q: "Naweza kufuatilia oda yangu?", a: "Ndiyo. Unapata SMS kila hatua (kununuliwa, kukaguliwa, kusafirishwa, forodha na kufikishwa), na unaweza kuona hali ya oda wakati wowote kwenye Akaunti → Oda zangu." },
+      { q: "Herufi ni ya kuaminika?", a: "Herufi ni duka la mtandaoni lenye ofisi Mikocheni B, Dar es Salaam. Bei zote zinaonyeshwa kwa shilingi kabla ya kulipa, kila oda hukaguliwa kabla ya kusafirishwa, na unaweza kurudisha bidhaa ndani ya siku 14. Wasiliana nasi kwa WhatsApp au simu kila siku saa 2 asubuhi hadi saa 2 usiku." },
       { q: "Nina uhakika gani kuhusu ubora wa bidhaa?", a: "Tunanunua kutoka kwa watengenezaji tuliowathibitisha Guangzhou, Shenzhen, Yiwu na Foshan, tunakagua kila oda kabla ya kusafirisha, na unaweza kurudisha bidhaa ndani ya siku 14 tangu kufika." },
     ];
   }
@@ -87,6 +91,9 @@ export function homeFaq(locale: Locale, f: ShippingFacts): QA[] {
     { q: "Do I pay customs duty or VAT on delivery?", a: "No. Import duty is included in our prices and 18% VAT is shown at checkout, so there is nothing extra to pay when your order arrives." },
     { q: "Can I pay with M-Pesa?", a: "Yes. We accept M-Pesa, Tigo Pesa, Airtel Money, HaloPesa, Visa and Mastercard, and every price is in Tanzanian shillings (TZS)." },
     { q: "Where in Tanzania do you deliver?", a: "We deliver to your door in Dar es Salaam, Arusha, Mwanza and Dodoma. Other towns are served through partner pickup points, and the courier calls you to arrange collection." },
+    { q: "What is the cheapest way to ship from China to Tanzania?", a: `Sea freight is the cheapest option: ${seaFreeText(f, "en")}, with delivery in ${f.seaDays} days. If you need it sooner, air cargo takes ${f.airDays} days at ${f.airRate} per kg.` },
+    { q: "Can I track my order from China?", a: "Yes. You get an SMS at every stage (purchased, inspected, shipped, customs and delivered), and you can check the live status any time under Account → My orders." },
+    { q: "Is Herufi legit?", a: "Herufi is an online store with an office in Mikocheni B, Dar es Salaam. Every price is shown in shillings before you pay, every order is inspected before it ships, and you can return items within 14 days. You can reach the team on WhatsApp or by phone every day from 8am to 8pm EAT." },
     { q: "How do I know the products are good quality?", a: "We buy from manufacturers we have verified in Guangzhou, Shenzhen, Yiwu and Foshan, inspect every order before it ships, and you can return items within 14 days of delivery." },
   ];
 }
@@ -188,4 +195,31 @@ export function guideContent(locale: Locale, f: ShippingFacts) {
     cta: "Start shopping",
     updated: "Updated",
   };
+}
+
+// ---------------------------------------------------------------------------------
+// Product page: short, quotable answers about one product (price, delivery, payment)
+// ---------------------------------------------------------------------------------
+type ProductShipping = { method: string; label: string; price: number; eta_min: number; eta_max: number };
+
+export function productFaq(locale: Locale, p: { name: string; price: number; inStock: boolean }, options: ProductShipping[]): QA[] {
+  const price = formatPrice(p.price);
+  const fastest = [...options].sort((a, b) => a.eta_min - b.eta_min)[0];
+  const cheapest = [...options].sort((a, b) => a.price - b.price)[0];
+  const cost = (o: ProductShipping) => (o.price === 0 ? (locale === "sw" ? "bure" : "free") : formatPrice(o.price));
+  const list = options.map((o) => locale === "sw"
+    ? `${o.label}: siku ${o.eta_min}–${o.eta_max} (${cost(o)})`
+    : `${o.label}: ${o.eta_min}–${o.eta_max} days (${cost(o)})`).join("; ");
+  if (locale === "sw") {
+    return [
+      { q: `Bei ya ${p.name} Tanzania ni kiasi gani?`, a: `${p.name} inauzwa ${price} kwenye Herufi, ikiwa tayari na ushuru wa forodha. VAT ya 18% na gharama ya usafirishaji zinaonyeshwa kabla ya kulipa.${p.inStock ? "" : " Kwa sasa imeisha."}` },
+      ...(options.length ? [{ q: `${p.name} huchukua muda gani kufika Tanzania?`, a: `${list}. ${fastest ? `Njia ya haraka zaidi ni ${fastest.label}` : ""}${cheapest && cheapest !== fastest ? ` na nafuu zaidi ni ${cheapest.label}` : ""}.` }] : []),
+      { q: `Ninawezaje kulipia ${p.name}?`, a: "Lipa kwa M-Pesa, Tigo Pesa, Airtel Money, HaloPesa, Visa au Mastercard. Hulipi chochote cha ziada mzigo ukifika, na unaweza kurudisha ndani ya siku 14." },
+    ];
+  }
+  return [
+    { q: `How much is the ${p.name} in Tanzania?`, a: `The ${p.name} costs ${price} on Herufi, with import duty already included. 18% VAT and the shipping cost are shown before you pay.${p.inStock ? "" : " It is currently sold out."}` },
+    ...(options.length ? [{ q: `How long does the ${p.name} take to arrive in Tanzania?`, a: `${list}. ${fastest ? `The fastest option is ${fastest.label}` : ""}${cheapest && cheapest !== fastest ? ` and the cheapest is ${cheapest.label}` : ""}.` }] : []),
+    { q: `How can I pay for the ${p.name}?`, a: "Pay with M-Pesa, Tigo Pesa, Airtel Money, HaloPesa, Visa or Mastercard. There is nothing extra to pay on delivery, and you can return it within 14 days." },
+  ];
 }

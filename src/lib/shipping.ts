@@ -56,3 +56,66 @@ export function etaRange(min: number, max: number, intlLocale: string, from = ne
   const add = (n: number) => { const d = new Date(from); d.setDate(d.getDate() + n); return d; };
   return `${f.format(add(min))} – ${f.format(add(max))}`;
 }
+
+/** Days of the month a consolidated batch leaves the China warehouse. Mirrors next_ship_date() in SQL. */
+export const SHIP_DAYS = [14, 28];
+/** An order must be placed at least this many days before a batch to join it. */
+export const SHIP_CUTOFF_DAYS = 12;
+const SHIP_TZ = "Africa/Dar_es_Salaam";
+
+/** Today's date in Tanzania as a UTC-midnight Date (date-only arithmetic, no DST in EAT). */
+function tzToday(at: Date) {
+  const [y, m, d] = new Intl.DateTimeFormat("en-CA", { timeZone: SHIP_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(at).split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+/** The batch an order placed at `at` ships with, as YYYY-MM-DD. */
+export function nextShipDate(at = new Date()) {
+  const today = tzToday(at);
+  for (let i = 0; i < 3; i++) {
+    for (const day of SHIP_DAYS) {
+      const batch = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + i, day));
+      if (today.getTime() <= batch.getTime() - SHIP_CUTOFF_DAYS * 864e5) return batch.toISOString().slice(0, 10);
+    }
+  }
+  throw new Error("unreachable");
+}
+
+/** The most recent batch date on or before today (YYYY-MM-DD): the one staff should be dispatching. */
+export function currentBatchDate(at = new Date()) {
+  const today = tzToday(at);
+  const y = today.getUTCFullYear(), m = today.getUTCMonth(), d = today.getUTCDate();
+  const batch = d >= SHIP_DAYS[1] ? Date.UTC(y, m, SHIP_DAYS[1]) : d >= SHIP_DAYS[0] ? Date.UTC(y, m, SHIP_DAYS[0]) : Date.UTC(y, m - 1, SHIP_DAYS[1]);
+  return new Date(batch).toISOString().slice(0, 10);
+}
+
+/** The next batch date strictly after today (YYYY-MM-DD): the shipment the warehouse is filling now. */
+export function upcomingBatchDate(at = new Date()) {
+  const today = tzToday(at);
+  const y = today.getUTCFullYear(), m = today.getUTCMonth(), d = today.getUTCDate();
+  const batch = d < SHIP_DAYS[0] ? Date.UTC(y, m, SHIP_DAYS[0]) : d < SHIP_DAYS[1] ? Date.UTC(y, m, SHIP_DAYS[1]) : Date.UTC(y, m + 1, SHIP_DAYS[0]);
+  return new Date(batch).toISOString().slice(0, 10);
+}
+
+/** The batch dates after `from` (YYYY-MM-DD), for rescheduling an order. */
+export function batchDatesAfter(from: string, count = 4) {
+  const out: string[] = [];
+  const [y, m] = from.split("-").map(Number);
+  for (let i = 0; out.length < count; i++) {
+    for (const day of SHIP_DAYS) {
+      const d = new Date(Date.UTC(y, m - 1 + i, day)).toISOString().slice(0, 10);
+      if (d > from && out.length < count) out.push(d);
+    }
+  }
+  return out;
+}
+
+/** Last day an order can be placed to make the batch on `shipDate`. */
+export function shipCutoff(shipDate: string) {
+  return new Date(Date.parse(shipDate) - SHIP_CUTOFF_DAYS * 864e5).toISOString().slice(0, 10);
+}
+
+/** Format a date-only (YYYY-MM-DD) value without the viewer's timezone shifting it a day. */
+export function formatShipDate(date: string, intlLocale: string, opts: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric" }) {
+  return new Intl.DateTimeFormat(intlLocale, { ...opts, timeZone: "UTC" }).format(new Date(`${date.slice(0, 10)}T00:00:00Z`));
+}

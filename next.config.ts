@@ -1,10 +1,10 @@
 import type { NextConfig } from "next";
 
-const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
-  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
-  : undefined;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL) : undefined;
 
 const nextConfig: NextConfig = {
+  // Self-contained server in .next/standalone for the Docker image (see Dockerfile).
+  output: "standalone",
   images: {
     // Resizing is delegated to the image CDNs (see src/lib/image-loader.ts).
     loader: "custom",
@@ -12,8 +12,12 @@ const nextConfig: NextConfig = {
     qualities: [60, 75, 85],
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
-      ...(supabaseHost
-        ? [{ protocol: "https" as const, hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }]
+      ...(supabaseUrl
+        ? [{
+            protocol: supabaseUrl.protocol.replace(":", "") as "http" | "https",
+            hostname: supabaseUrl.hostname,
+            pathname: "/storage/v1/object/public/**",
+          }]
         : []),
     ],
   },

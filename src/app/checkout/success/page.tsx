@@ -6,7 +6,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { getUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getI18n } from "@/i18n/server";
-import { fmt } from "@/i18n/config";
+import { fmt, INTL_LOCALE } from "@/i18n/config";
+import { formatShipDate } from "@/lib/shipping";
 import type { Order } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
 
@@ -15,7 +16,7 @@ export const metadata: Metadata = { robots: { index: false } };
 export default async function SuccessPage({ searchParams }: PageProps<"/checkout/success">) {
   const { order: orderParam } = await searchParams;
   const orderNumber = typeof orderParam === "string" ? orderParam.slice(0, 32) : null;
-  const [user, { t }] = await Promise.all([getUser(), getI18n()]);
+  const [user, { t, locale }] = await Promise.all([getUser(), getI18n()]);
   const s = t.checkout.success;
 
   // Signed-in shoppers see the full order (RLS only returns their own orders).
@@ -39,7 +40,7 @@ export default async function SuccessPage({ searchParams }: PageProps<"/checkout
       {order && (
         <div className="mt-12 rounded-[1.5rem] border border-border p-6 animate-fade-up sm:p-8" style={{ animationDelay: "120ms" }}>
           <div className="grid gap-6 border-b border-border pb-6 text-sm sm:grid-cols-2">
-            <div className="flex gap-3"><Truck className="h-5 w-5 shrink-0" /><div><p className="font-medium">{fmt(s.deliveryLabel, { method: delivery?.label ?? "" })}</p><p className="text-muted">{delivery?.eta}</p></div></div>
+            <div className="flex gap-3"><Truck className="h-5 w-5 shrink-0" /><div><p className="font-medium">{fmt(s.deliveryLabel, { method: delivery?.label ?? "" })}</p><p className="text-muted">{delivery?.eta}</p>{order.ship_date && <p className="mt-1 text-muted">{fmt(t.shipping.batch, { date: formatShipDate(order.ship_date, INTL_LOCALE[locale]) })}</p>}</div></div>
             <div className="flex gap-3"><Package className="h-5 w-5 shrink-0" /><div><p className="font-medium">{s.shippingTo}</p><p className="text-muted">{order.shipping_address.full_name}, {order.shipping_address.line1}, {order.shipping_address.city}</p></div></div>
           </div>
           <ul className="divide-y divide-border">

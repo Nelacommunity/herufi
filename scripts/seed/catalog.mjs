@@ -10,7 +10,7 @@ export const categories = [
   { slug: 'home', name: 'Home', image: '1578500494198-246f612d3b3d', description: 'Furniture, lighting and objects for calmer rooms.' },
   { slug: 'accessories', name: 'Accessories', image: '1524592094714-0f0654e20314', description: 'Watches, bags, jewellery and the finishing details.' },
   { slug: 'sports', name: 'Sports & Outdoors', image: '1575052814086-f385e2e2ad1b', description: 'Gear for training, trails and everything in between.' },
-  { slug: 'kitchen', name: 'Kitchen & Dining', image: '1610701596061-2ecf227e85b2', description: 'Handmade ceramics and tools for slow mornings.' },
+  { slug: 'kitchen', name: 'Kitchen & Dining', image: '1610701596061-2ecf227e85b2', description: 'Handmade ceramics and tools for slow mornings.' },  { slug: 'computers', id: '7c1f3a52-9d4e-4b8a-a6f0-2e5c8d1b9a37', name: 'Computers & Gaming', image: '1587202372775-e229f172b9d7', description: 'Laptops, gaming PCs, monitors and peripherals for work and play.' },
 ];
 
 const sizes = (list, stock = 12) => list.map((v) => ({ name: 'Size', value: v, stock }));

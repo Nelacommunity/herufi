@@ -1,9 +1,9 @@
 "use client";
 
-import { Anchor, Plane, Rocket } from "lucide-react";
+import { Anchor, CalendarClock, Plane, Rocket } from "lucide-react";
 import { useI18n } from "@/i18n/client";
 import { fmt, INTL_LOCALE } from "@/i18n/config";
-import { etaRange } from "@/lib/shipping";
+import { etaRange, formatShipDate, nextShipDate, shipCutoff } from "@/lib/shipping";
 import type { DeliveryMethod, ShippingOption } from "@/lib/types";
 import { cn, formatPrice } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +26,9 @@ export function ShippingOptions({ options, selected, onSelect, loading, single, 
 }) {
   const { t, locale } = useI18n();
   const s = t.shipping;
+  // Everything leaves China in the next consolidated batch; transit time counts from then.
+  const shipDate = nextShipDate();
+  const intl = INTL_LOCALE[locale];
 
   if (!options.length) {
     return (
@@ -37,6 +40,13 @@ export function ShippingOptions({ options, selected, onSelect, loading, single, 
 
   return (
     <div role="radiogroup" aria-label={s.method} aria-busy={loading} className={cn("space-y-2 transition-opacity", loading && "opacity-60", className)}>
+      <p className="flex items-start gap-2 rounded-xl bg-surface-2 px-3 py-2.5 text-sm" suppressHydrationWarning>
+        <CalendarClock className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>
+          <span className="font-medium">{fmt(s.batch, { date: formatShipDate(shipDate, intl) })}</span>
+          {!compact && <span className="block text-xs text-muted">{fmt(s.batchCutoff, { cutoff: formatShipDate(shipCutoff(shipDate), intl, { month: "short", day: "numeric" }) })}</span>}
+        </span>
+      </p>
       {options.map((o) => {
         const Icon = ICONS[o.method];
         const label = s.methods[o.method]?.label ?? o.method;
@@ -78,7 +88,7 @@ export function ShippingOptions({ options, selected, onSelect, loading, single, 
               </span>
               <span className="mt-0.5 block text-sm text-muted">
                 {fmt(s.days, { min: o.eta_min, max: o.eta_max })}
-                <span suppressHydrationWarning> · {fmt(s.arrives, { range: etaRange(o.eta_min, o.eta_max, INTL_LOCALE[locale]) })}</span>
+                <span suppressHydrationWarning> · {fmt(s.arrives, { range: etaRange(o.eta_min, o.eta_max, intl, new Date(`${shipDate}T12:00:00Z`)) })}</span>
               </span>
               {o.available ? (
                 !compact && (

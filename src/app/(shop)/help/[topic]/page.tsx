@@ -6,14 +6,15 @@ import { HELP_TOPICS } from "@/lib/help";
 import { companyDetails, fillBusiness } from "@/lib/business";
 import { getI18n } from "@/i18n/server";
 import { cn, formatDate } from "@/lib/utils";
-import { jsonLd, pageAlternates } from "@/lib/seo";
+import { jsonLd, pageAlternates, socialMetaWithImage } from "@/lib/seo";
 
 export async function generateMetadata({ params }: PageProps<"/help/[topic]">): Promise<Metadata> {
   const [{ topic }, { locale }] = await Promise.all([params, getI18n()]);
   const found = HELP_TOPICS.find((x) => x.slug === topic);
-  return found
-    ? { title: fillBusiness(found[locale].title, locale), description: fillBusiness(found[locale].summary, locale), alternates: pageAlternates(`/help/${found.slug}`, locale) }
-    : {};
+  if (!found) return {};
+  const title = fillBusiness(found[locale].title, locale);
+  const description = fillBusiness(found[locale].summary, locale);
+  return { title, description, alternates: pageAlternates(`/help/${found.slug}`, locale), ...socialMetaWithImage({ title, description, path: `/help/${found.slug}`, locale }) };
 }
 
 /** Paragraphs, with runs of "- " lines rendered as bullet lists. */
