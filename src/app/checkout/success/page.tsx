@@ -11,7 +11,9 @@ import { ClearBag } from "@/components/checkout/clear-bag";
 import { AutoRefresh } from "@/components/checkout/auto-refresh";
 import { getI18n } from "@/i18n/server";
 import { fmt, INTL_LOCALE } from "@/i18n/config";
-import { formatShipDate } from "@/lib/shipping";
+import { formatShipDate, orderArrival } from "@/lib/shipping";
+import { getShippingRates } from "@/lib/queries/catalog";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Order } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
 
@@ -38,6 +40,11 @@ export default async function SuccessPage({ searchParams }: PageProps<"/checkout
     order = data as Order | null;
   }
   const delivery = order ? t.checkout.deliveryMethods[order.delivery_method] : undefined;
+  // Guests can't read the order (RLS), but the delivery estimate isn't sensitive.
+  const shipInfo = order ?? (paymentStatus === "paid" && orderNumber
+    ? (await createAdminClient().from("orders").select("status, ship_date, delivery_method").eq("order_number", orderNumber).maybeSingle()).data
+    : null);
+  const arrival = shipInfo ? orderArrival(shipInfo, await getShippingRates(), INTL_LOCALE[locale]) : null;
   const [bodyBefore, bodyAfter] = s.body.split("{number}");
 
   return (
@@ -48,6 +55,7 @@ export default async function SuccessPage({ searchParams }: PageProps<"/checkout
           <CheckCircle2 className="mx-auto h-16 w-16 stroke-[1.25] text-success" />
           <h1 className="mt-6 font-display text-5xl tracking-tight sm:text-6xl">{s.title}</h1>
           <p className="mt-4 text-lg text-muted">{bodyBefore}{orderNumber && <strong className="font-semibold text-foreground">{orderNumber}</strong>}{bodyAfter}</p>
+          {arrival && !order && <p className="mt-3 font-medium">{fmt(t.shipping.estimatedArrival, { range: arrival })}</p>}
         </div>
       ) : cardCancelled ? (
         <div className="text-center animate-fade-up">
@@ -95,7 +103,7 @@ export default async function SuccessPage({ searchParams }: PageProps<"/checkout
       {order && paymentStatus === "paid" && (
         <div className="mt-12 rounded-[1.5rem] border border-border p-6 animate-fade-up sm:p-8" style={{ animationDelay: "120ms" }}>
           <div className="grid gap-6 border-b border-border pb-6 text-sm sm:grid-cols-2">
-            <div className="flex gap-3"><Truck className="h-5 w-5 shrink-0" /><div><p className="font-medium">{fmt(s.deliveryLabel, { method: delivery?.label ?? "" })}</p><p className="text-muted">{delivery?.eta}</p>{order.ship_date && <p className="mt-1 text-muted">{fmt(t.shipping.batch, { date: formatShipDate(order.ship_date, INTL_LOCALE[locale]) })}</p>}</div></div>
+            <div className="flex gap-3"><Truck className="h-5 w-5 shrink-0" /><div><p className="font-medium">{fmt(s.deliveryLabel, { method: delivery?.label ?? "" })}</p><p className="text-muted">{delivery?.eta}</p>{order.ship_date && <p className="mt-1 text-muted">{fmt(t.shipping.batch, { date: formatShipDate(order.ship_date, INTL_LOCALE[locale]) })}</p>}{arrival && <p className="mt-1 font-medium">{fmt(t.shipping.estimatedArrival, { range: arrival })}</p>}</div></div>
             <div className="flex gap-3"><Package className="h-5 w-5 shrink-0" /><div><p className="font-medium">{s.shippingTo}</p><p className="text-muted">{order.shipping_address.full_name}, {order.shipping_address.line1}, {order.shipping_address.city}</p></div></div>
           </div>
           <ul className="divide-y divide-border">

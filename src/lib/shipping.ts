@@ -119,3 +119,24 @@ export function shipCutoff(shipDate: string) {
 export function formatShipDate(date: string, intlLocale: string, opts: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric" }) {
   return new Intl.DateTimeFormat(intlLocale, { ...opts, timeZone: "UTC" }).format(new Date(`${date.slice(0, 10)}T00:00:00Z`));
 }
+
+/**
+ * Estimated arrival in Tanzania for goods leaving China on `shipDate` (YYYY-MM-DD): the method's
+ * transit time (which includes customs clearance) counted from that batch, e.g. "12 Dec – 22 Dec".
+ */
+export function arrivalRange(shipDate: string, etaMin: number, etaMax: number, intlLocale: string) {
+  const add = (n: number) => new Date(Date.parse(`${shipDate.slice(0, 10)}T00:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
+  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+  return `${formatShipDate(add(etaMin), intlLocale, opts)} – ${formatShipDate(add(etaMax), intlLocale, opts)}`;
+}
+
+/** Estimated arrival range for an order (null once delivered or cancelled, or without a ship batch). */
+export function orderArrival(
+  order: { status: string; ship_date: string | null; delivery_method: string },
+  rates: { method: string; eta_min_days: number; eta_max_days: number }[],
+  intlLocale: string,
+) {
+  if (!order.ship_date || order.status === "delivered" || order.status === "cancelled") return null;
+  const rate = rates.find((r) => r.method === order.delivery_method);
+  return rate ? arrivalRange(order.ship_date, rate.eta_min_days, rate.eta_max_days, intlLocale) : null;
+}

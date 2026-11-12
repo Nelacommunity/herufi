@@ -148,7 +148,7 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
           <div className="mt-0 grid gap-8 sm:mt-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-14 xl:gap-20">
             <ProductGallery images={product.images} name={product.name} badge={badge} />
             <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
-              <PurchasePanel product={product} freeSeaShipping={seaPromo ? (seaPromo.free_over ?? 0) : null} />
+              <PurchasePanel product={product} freeSeaShipping={seaPromo ? (seaPromo.free_over ?? 0) : null} arrival={available.map((o) => ({ method: o.method, eta_min: o.eta_min, eta_max: o.eta_max }))} />
             </div>
           </div>
         </VariantImageProvider>

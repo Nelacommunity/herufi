@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Anchor, Check, RotateCcw, ShieldCheck } from "lucide-react";
 import { ShippingCalculator } from "@/components/shipping/shipping-calculator";
+import { ArrivalEstimate } from "@/components/shipping/arrival-estimate";
 import { Button } from "@/components/ui/button";
 import { PriceDisplay } from "@/components/product/price-display";
 import { QuantitySelector } from "@/components/product/quantity-selector";
@@ -14,14 +15,19 @@ import { WishlistButton } from "@/components/product/wishlist-button";
 import { SWATCHES } from "@/components/product/swatches";
 import { useStore } from "@/providers/store-provider";
 import { isInStock } from "@/lib/queries/shared";
-import type { Product } from "@/lib/types";
+import type { DeliveryMethod, Product } from "@/lib/types";
 import { cn, formatPrice } from "@/lib/utils";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/config";
 import { findVariant, imageFor, initialSelection, optionGroups, photoForValue, photoOption, selectValue, valueExtra, valueState, type Selection } from "@/lib/variant-options";
 
 
-export function PurchasePanel({ product, freeSeaShipping = null }: { product: Product; freeSeaShipping?: number | null }) {
+export function PurchasePanel({ product, freeSeaShipping = null, arrival = [] }: {
+  product: Product;
+  freeSeaShipping?: number | null;
+  /** Shipping methods available for this product, for the arrival-date estimate. */
+  arrival?: { method: DeliveryMethod; eta_min: number; eta_max: number }[];
+}) {
   const { addToCart, trackView } = useStore();
   const { t } = useI18n();
   const p = t.product;
@@ -108,6 +114,7 @@ export function PurchasePanel({ product, freeSeaShipping = null }: { product: Pr
         </p>
       )}
       <p className="mt-2 text-sm text-muted">{p.taxNote} {p.payNote}</p>
+      <ArrivalEstimate options={arrival} />
 
       <p className="mt-6 text-pretty leading-relaxed text-muted">{product.description.split(". ").slice(0, 2).join(". ")}{product.description.split(". ").length > 2 ? "." : ""}</p>
 

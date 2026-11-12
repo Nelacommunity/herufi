@@ -5,7 +5,9 @@ import { ArrowLeft, CreditCard, MapPin, Truck } from "lucide-react";
 import { OrderStatusBadge, OrderTimeline } from "@/components/account/order-status";
 import { createClient } from "@/lib/supabase/server";
 import { getI18n } from "@/i18n/server";
-import { fmt } from "@/i18n/config";
+import { fmt, INTL_LOCALE } from "@/i18n/config";
+import { getShippingRates } from "@/lib/queries/catalog";
+import { orderArrival } from "@/lib/shipping";
 import type { Order } from "@/lib/types";
 import { formatDate, formatPrice } from "@/lib/utils";
 
@@ -17,13 +19,14 @@ export async function generateMetadata({ params }: PageProps<"/account/orders/[n
 
 export default async function OrderDetailPage({ params }: PageProps<"/account/orders/[number]">) {
   const { number } = await params;
-  const [supabase, { t, locale }] = await Promise.all([createClient(), getI18n()]);
+  const [supabase, { t, locale }, rates] = await Promise.all([createClient(), getI18n(), getShippingRates()]);
   const a = t.account;
   const { data } = await supabase.from("orders").select("*, items:order_items(*)").eq("order_number", decodeURIComponent(number)).maybeSingle();
   if (!data) notFound();
   const order = data as Order;
   const delivery = t.checkout.deliveryMethods[order.delivery_method];
   const addr = order.shipping_address;
+  const arrival = orderArrival(order, rates, INTL_LOCALE[locale]);
 
   return (
     <div className="space-y-8">
@@ -39,7 +42,7 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl bg-surface-2 p-5 text-sm"><MapPin className="h-5 w-5" /><p className="mt-3 font-medium">{a.shippingAddress}</p><p className="mt-1 text-muted">{addr.full_name}<br />{addr.line1}{addr.line2 ? `, ${addr.line2}` : ""}<br />{addr.city}{addr.region ? `, ${addr.region}` : ""} {addr.postal_code}{addr.phone && <><br />{addr.phone}</>}</p></div>
-        <div className="rounded-2xl bg-surface-2 p-5 text-sm"><Truck className="h-5 w-5" /><p className="mt-3 font-medium">{delivery?.label ?? order.delivery_method}</p><p className="mt-1 text-muted">{delivery?.eta}</p></div>
+        <div className="rounded-2xl bg-surface-2 p-5 text-sm"><Truck className="h-5 w-5" /><p className="mt-3 font-medium">{delivery?.label ?? order.delivery_method}</p><p className="mt-1 text-muted">{delivery?.eta}</p>{arrival && <p className="mt-1 font-medium">{fmt(t.shipping.estimatedArrival, { range: arrival })}</p>}</div>
         <div className="rounded-2xl bg-surface-2 p-5 text-sm"><CreditCard className="h-5 w-5" /><p className="mt-3 font-medium">{a.payment}</p><p className="mt-1 text-muted">{order.payment_method?.last4 ? fmt(t.checkout.endingIn, { brand: order.payment_method.brand ?? "", last4: order.payment_method.last4 }) : (order.payment_method?.brand || t.checkout.card)}<br />{a.paymentStatus[order.payment_status] ?? order.payment_status}</p></div>
       </div>
 
