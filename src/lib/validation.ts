@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+function coordinate(min: number, max: number) {
+  return z.preprocess((v) => (v === "" || v == null ? undefined : Number(v)), z.number().min(min).max(max).optional());
+}
+
 export const addressSchema = z.object({
   full_name: z.string().trim().min(2, "Enter your full name").max(120),
   line1: z.string().trim().min(3, "Enter your street address").max(200),
@@ -9,6 +13,9 @@ export const addressSchema = z.object({
   postal_code: z.string().trim().max(20).optional().or(z.literal("")),
   country: z.string().trim().length(2, "Choose a country"),
   phone: z.string().trim().regex(/^\+?[0-9 ()-]{9,20}$/, "Enter a valid phone number"),
+  // Optional map pin from "Use my current location" (form fields arrive as strings).
+  latitude: coordinate(-90, 90),
+  longitude: coordinate(-180, 180),
 });
 export type AddressInput = z.infer<typeof addressSchema>;
 

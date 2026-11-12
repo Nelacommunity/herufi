@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TZ_REGIONS } from "@/lib/constants";
+import { LocationPicker } from "@/components/account/location-picker";
 import { useI18n } from "@/i18n/client";
 import type { Address } from "@/lib/types";
 
@@ -73,6 +74,7 @@ function AddressForm({ address, onDone }: { address: Address | null; onDone: () 
         <input type="hidden" name="country" value="TZ" />
         <Field label={c.country} htmlFor="country"><Input id="country" value="Tanzania" disabled readOnly /></Field>
       </div>
+      <LocationPicker defaultLat={address?.latitude} defaultLng={address?.longitude} />
       <Checkbox name="is_default" defaultChecked={address?.is_default} label={a.useDefault} />
       {state && !state.ok && <p className="text-sm text-sale">{state.error}</p>}
       <Button type="submit" size="lg" loading={pending}>{a.saveAddress}</Button>

@@ -3,7 +3,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/env";
 import { isLocale, LOCALE_COOKIE } from "@/i18n/config";
 
-const PROTECTED = ["/account", "/admin"];
+const PROTECTED = ["/account", "/admin", "/welcome"];
+
+/**
+ * Pages a signed-in customer can use before finishing their profile (phone + where they live):
+ * the welcome form itself, auth flows, the API, policies/help, and the staff dashboard.
+ */
+const ONBOARDING_EXEMPT = ["/welcome", "/auth", "/api", "/admin", "/login", "/signup", "/forgot-password", "/reset-password", "/help"];
+const under = (pathname: string, list: string[]) => list.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 /** Refreshes the auth session cookie and guards signed-in areas. */
 export async function updateSession(request: NextRequest) {
@@ -37,7 +44,7 @@ export async function updateSession(request: NextRequest) {
   const signedIn = Boolean(data?.claims?.sub);
   const { pathname, search } = request.nextUrl;
 
-  if (!signedIn && PROTECTED.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+  if (!signedIn && under(pathname, PROTECTED)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = `?next=${encodeURIComponent(pathname + search)}`;
@@ -51,5 +58,32 @@ export async function updateSession(request: NextRequest) {
     return withLocale(NextResponse.redirect(url));
   }
 
+  // New accounts (email or Google) must add a phone number and address once. The flag lives in the
+  // session token's user_metadata, so this check needs no database call. Only page loads are
+  // redirected; server actions and other POSTs pass through.
+  const onboarded = (data?.claims?.user_metadata as { onboarded?: boolean } | undefined)?.onboarded === true;
+  const isPageLoad = request.method === "GET" && !request.headers.has("next-action");
+  if (signedIn && !onboarded && isPageLoad && !under(pathname, ONBOARDING_EXEMPT)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/welcome";
+    url.search = `?next=${encodeURIComponent(pathname + search)}`;
+    return redirectWithCookies(url, response, withLocale);
+  }
+  if (signedIn && onboarded && pathname === "/welcome") {
+    const url = request.nextUrl.clone();
+    const next = request.nextUrl.searchParams.get("next");
+    const target = next?.startsWith("/") && !next.startsWith("//") && !next.startsWith("/welcome") ? new URL(next, request.url) : null;
+    url.pathname = target?.pathname ?? "/";
+    url.search = target?.search ?? "";
+    return redirectWithCookies(url, response, withLocale);
+  }
+
   return withLocale(response);
+}
+
+/** Redirect while keeping any refreshed session cookies set on `response`. */
+function redirectWithCookies(url: URL, response: NextResponse, withLocale: (r: NextResponse) => NextResponse) {
+  const redirect = NextResponse.redirect(url);
+  response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
+  return withLocale(redirect);
 }

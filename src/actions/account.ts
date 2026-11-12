@@ -1,17 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
-import { addressSchema } from "@/lib/validation";
+import { addressSchema, isTzMobile } from "@/lib/validation";
+import { TZ_REGIONS } from "@/lib/constants";
+import { safeNext } from "@/lib/utils";
 import type { ActionResult } from "@/lib/types";
 import { getI18n } from "@/i18n/server";
 
 async function authed() {
-  const [user, { t }] = await Promise.all([getUser(), getI18n()]);
+  const [user, { t, locale }] = await Promise.all([getUser(), getI18n()]);
   if (!user) throw new Error(t.errors.signInAgain);
-  return { user, t, supabase: await createClient() };
+  return { user, t, locale, supabase: await createClient() };
 }
 
 const profileSchema = z.object({
@@ -58,7 +61,7 @@ export async function saveAddress(_: ActionResult | null, formData: FormData): P
   const makeDefault = is_default === "on";
   if (makeDefault) await supabase.from("addresses").update({ is_default: false }).eq("user_id", user.id);
   const { count } = await supabase.from("addresses").select("id", { count: "exact", head: true });
-  const row = { ...data, line2: data.line2 || null, region: data.region || null, postal_code: data.postal_code || null, phone: data.phone, is_default: makeDefault || !count };
+  const row = { ...data, line2: data.line2 || null, region: data.region || null, postal_code: data.postal_code || null, phone: data.phone, latitude: data.latitude ?? null, longitude: data.longitude ?? null, is_default: makeDefault || !count };
   const { error } = id
     ? await supabase.from("addresses").update(row).eq("id", id)
     : await supabase.from("addresses").insert({ ...row, user_id: user.id });
@@ -89,4 +92,67 @@ export async function clearRecentlyViewed(): Promise<ActionResult> {
   await supabase.from("product_views").delete().eq("user_id", user.id);
   revalidatePath("/account/recently-viewed");
   return { ok: true };
+}
+
+const onboardingSchema = z.object({
+  full_name: z.string().trim().min(2).max(120),
+  phone: z.string().trim().refine(isTzMobile),
+  region: z.enum(TZ_REGIONS as [string, ...string[]]),
+  city: z.string().trim().min(2).max(100),
+  line1: z.string().trim().min(3).max(200),
+  line2: z.string().trim().max(200).optional().or(z.literal("")),
+  latitude: addressSchema.shape.latitude,
+  longitude: addressSchema.shape.longitude,
+  next: z.string().optional(),
+});
+
+/** "+255 754 123 456" from 0754123456 / 255754123456 / +255 754 123 456. */
+function formatTzPhone(input: string) {
+  const d = input.replace(/\D/g, "");
+  const local = d.startsWith("255") ? d.slice(3) : d.replace(/^0/, "");
+  return `+255 ${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`;
+}
+
+/**
+ * First-visit profile: phone number and where the customer lives. Saves the phone on the profile,
+ * the address as the default delivery address, then marks the account as onboarded (a flag in the
+ * auth user's metadata, which the proxy reads from the session to stop asking).
+ */
+export async function completeOnboarding(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const { user, t, locale, supabase } = await authed();
+  const parsed = onboardingSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    const fields = new Set(parsed.error.issues.map((i) => String(i.path[0])));
+    const o = t.onboarding.errors;
+    return {
+      ok: false,
+      error: t.errors.checkFields,
+      fieldErrors: {
+        full_name: fields.has("full_name") ? [t.checkout.errors.name] : undefined,
+        phone: fields.has("phone") ? [o.phone] : undefined,
+        city: fields.has("city") ? [o.city] : undefined,
+        line1: fields.has("line1") ? [o.area] : undefined,
+      },
+    };
+  }
+  const { full_name, region, city, line1, line2, latitude, longitude, next } = parsed.data;
+  const phone = formatTzPhone(parsed.data.phone);
+
+  const { error: profileError } = await supabase.from("profiles").update({ full_name, phone }).eq("user_id", user.id);
+  if (profileError) return { ok: false, error: t.errors.generic };
+
+  const address = { full_name, phone, line1, line2: line2 || null, city, region, country: "TZ", postal_code: "", latitude: latitude ?? null, longitude: longitude ?? null };
+  const { data: existing } = await supabase.from("addresses").select("id").eq("user_id", user.id).order("is_default", { ascending: false }).order("created_at").limit(1).maybeSingle();
+  const { error: addressError } = existing
+    ? await supabase.from("addresses").update(address).eq("id", existing.id)
+    : await supabase.from("addresses").insert({ ...address, user_id: user.id, label: locale === "sw" ? "Nyumbani" : "Home", is_default: true });
+  if (addressError) return { ok: false, error: t.errors.generic };
+
+  const { error: metaError } = await supabase.auth.updateUser({ data: { full_name, onboarded: true } });
+  if (metaError) return { ok: false, error: t.errors.generic };
+  // The proxy reads the flag from the session token, so issue a fresh one now.
+  await supabase.auth.refreshSession();
+
+  revalidatePath("/account", "layout");
+  redirect(safeNext(next, "/"));
 }

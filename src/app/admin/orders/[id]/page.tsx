@@ -68,6 +68,7 @@ export default async function AdminOrderDetail({ params }: PageProps<"/admin/ord
           <section className={card}>
             <h2 className="flex items-center gap-2 text-sm font-semibold"><MapPin className="h-4 w-4" /> Shipping address</h2>
             <p className="mt-3 text-sm leading-relaxed text-muted">{a.full_name}<br />{a.line1}{a.line2 ? `, ${a.line2}` : ""}<br />{a.city}{a.region ? `, ${a.region}` : ""} {a.postal_code}<br />{a.country}{a.phone && <><br />{a.phone}</>}</p>
+            {a.latitude != null && a.longitude != null && <a href={`https://www.google.com/maps?q=${a.latitude},${a.longitude}`} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm font-medium underline underline-offset-4">Open delivery location in Google Maps</a>}
           </section>
           <section className={card}>
             <h2 className="flex items-center gap-2 text-sm font-semibold"><Truck className="h-4 w-4" /> Delivery</h2>

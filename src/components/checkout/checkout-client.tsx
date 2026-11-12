@@ -65,7 +65,7 @@ export function CheckoutClient({ email: initialEmail, addresses, signedIn }: {
   const shippingAddress: AddressInput | null = useMemo(() => {
     if (addressId !== "new") {
       const a = addresses.find((x) => x.id === addressId);
-      return a ? { full_name: a.full_name, line1: a.line1, line2: a.line2 ?? "", city: a.city, region: a.region ?? "", postal_code: a.postal_code ?? "", country: a.country, phone: a.phone ?? "" } : null;
+      return a ? { full_name: a.full_name, line1: a.line1, line2: a.line2 ?? "", city: a.city, region: a.region ?? "", postal_code: a.postal_code ?? "", country: a.country, phone: a.phone ?? "", latitude: a.latitude ?? undefined, longitude: a.longitude ?? undefined } : null;
     }
     return address;
   }, [addressId, address, addresses]);

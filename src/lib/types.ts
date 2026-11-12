@@ -132,6 +132,8 @@ export interface Address {
   postal_code: string;
   country: string;
   phone: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   is_default: boolean;
 }
 
