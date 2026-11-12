@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { CheckCircle2, Loader2, Package, Truck, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Package, SearchX, Truck, XCircle } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { getUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { cookies } from "next/headers";
+import { checkOrderPayment, PENDING_ORDER_COOKIE, type PaymentState } from "@/lib/payments";
+import { ClearBag } from "@/components/checkout/clear-bag";
 import { AutoRefresh } from "@/components/checkout/auto-refresh";
 import { getI18n } from "@/i18n/server";
 import { fmt, INTL_LOCALE } from "@/i18n/config";
@@ -16,10 +18,17 @@ import { formatPrice } from "@/lib/utils";
 export const metadata: Metadata = { robots: { index: false } };
 
 export default async function SuccessPage({ searchParams }: PageProps<"/checkout/success">) {
-  const { order: orderParam } = await searchParams;
+  const { order: orderParam, cancelled } = await searchParams;
   const orderNumber = typeof orderParam === "string" ? orderParam.slice(0, 32) : null;
   const [user, { t, locale }] = await Promise.all([getUser(), getI18n()]);
   const s = t.checkout.success;
+
+  // Payment state isn't sensitive, so guests (no RLS access) see it too. Checked first: it can
+  // settle a pending order (asking Snippe directly) before the details below are read.
+  const paymentStatus: PaymentState = orderNumber ? await checkOrderPayment(orderNumber) : "not_found";
+  const cardCancelled = cancelled === "1" && paymentStatus === "pending";
+  // Only the browser that placed this order clears its bag (not anyone opening an old link).
+  const placedHere = (await cookies()).get(PENDING_ORDER_COOKIE)?.value === orderNumber;
 
   // Signed-in shoppers see the full order (RLS only returns their own orders).
   let order: Order | null = null;
@@ -28,12 +37,6 @@ export default async function SuccessPage({ searchParams }: PageProps<"/checkout
     const { data } = await supabase.from("orders").select("*, items:order_items(*)").eq("order_number", orderNumber).maybeSingle();
     order = data as Order | null;
   }
-  // Payment state isn't sensitive, so guests (no RLS access) see it too. Only the Snippe webhook ever sets "paid".
-  let paymentStatus: "pending" | "paid" | "failed" = "paid";
-  if (orderNumber) {
-    const { data } = await createAdminClient().from("orders").select("payment_status").eq("order_number", orderNumber).maybeSingle();
-    paymentStatus = data?.payment_status === "pending" ? "pending" : data?.payment_status === "failed" ? "failed" : "paid";
-  }
   const delivery = order ? t.checkout.deliveryMethods[order.delivery_method] : undefined;
   const [bodyBefore, bodyAfter] = s.body.split("{number}");
 
@@ -41,23 +44,51 @@ export default async function SuccessPage({ searchParams }: PageProps<"/checkout
     <div className="container-page max-w-3xl py-12 sm:py-20">
       {paymentStatus === "paid" ? (
         <div className="text-center animate-fade-up">
+          {placedHere && <ClearBag />}
           <CheckCircle2 className="mx-auto h-16 w-16 stroke-[1.25] text-success" />
           <h1 className="mt-6 font-display text-5xl tracking-tight sm:text-6xl">{s.title}</h1>
           <p className="mt-4 text-lg text-muted">{bodyBefore}{orderNumber && <strong className="font-semibold text-foreground">{orderNumber}</strong>}{bodyAfter}</p>
         </div>
+      ) : cardCancelled ? (
+        <div className="text-center animate-fade-up">
+          <XCircle className="mx-auto h-16 w-16 stroke-[1.25] text-muted" />
+          <h1 className="mt-6 font-display text-4xl tracking-tight sm:text-5xl">{s.cancelledTitle}</h1>
+          <p className="mt-4 text-lg text-muted">{fmt(s.cancelledBody, { number: orderNumber ?? "" })}</p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/checkout" className={buttonVariants({ size: "lg" })}>{s.tryAgain}</Link>
+            <Link href="/help/contact" className={buttonVariants({ size: "lg", variant: "secondary" })}>{s.contact}</Link>
+          </div>
+        </div>
       ) : paymentStatus === "pending" ? (
         <div className="text-center animate-fade-up" role="status">
-          <AutoRefresh />
+          <AutoRefresh intervalMs={5000} />
           <Loader2 className="mx-auto h-16 w-16 animate-spin stroke-[1.25] text-muted" />
           <h1 className="mt-6 font-display text-4xl tracking-tight sm:text-5xl">{s.pendingTitle}</h1>
           <p className="mt-4 text-lg text-muted">{fmt(s.pendingBody, { number: orderNumber ?? "" })}</p>
+        </div>
+      ) : paymentStatus === "not_found" ? (
+        <div className="text-center animate-fade-up">
+          <SearchX className="mx-auto h-16 w-16 stroke-[1.25] text-muted" />
+          <h1 className="mt-6 font-display text-4xl tracking-tight sm:text-5xl">{s.notFoundTitle}</h1>
+          <p className="mt-4 text-lg text-muted">{s.notFoundBody}</p>
+          <Link href={user ? "/account/orders" : "/login?next=/account/orders"} className={buttonVariants({ size: "lg", className: "mt-8" })}>{s.myOrders}</Link>
+        </div>
+      ) : paymentStatus === "error" ? (
+        <div className="text-center animate-fade-up" role="alert">
+          <AlertCircle className="mx-auto h-16 w-16 stroke-[1.25] text-muted" />
+          <h1 className="mt-6 font-display text-4xl tracking-tight sm:text-5xl">{s.errorTitle}</h1>
+          <p className="mt-4 text-lg text-muted">{fmt(s.errorBody, { number: orderNumber ?? "" })}</p>
+          <Link href="/help/contact" className={buttonVariants({ size: "lg", variant: "secondary", className: "mt-8" })}>{s.contact}</Link>
         </div>
       ) : (
         <div className="text-center animate-fade-up">
           <XCircle className="mx-auto h-16 w-16 stroke-[1.25] text-sale" />
           <h1 className="mt-6 font-display text-4xl tracking-tight sm:text-5xl">{s.failedTitle}</h1>
           <p className="mt-4 text-lg text-muted">{fmt(s.failedBody, { number: orderNumber ?? "" })}</p>
-          <Link href="/cart" className={buttonVariants({ size: "lg", className: "mt-8" })}>{s.tryAgain}</Link>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/checkout" className={buttonVariants({ size: "lg" })}>{s.tryAgain}</Link>
+            <Link href="/help/contact" className={buttonVariants({ size: "lg", variant: "secondary" })}>{s.contact}</Link>
+          </div>
         </div>
       )}
 

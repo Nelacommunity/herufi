@@ -13,6 +13,8 @@ import { formatPrice } from "@/lib/utils";
 import { SITE_URL } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createSnippePayment, normalizeTzPhone } from "@/lib/snippe";
+import { checkOrderPayment, PENDING_ORDER_COOKIE, releaseUnpaidOrder } from "@/lib/payments";
+import { cookies } from "next/headers";
 
 const orderSchema = z.object({
   items: z.array(z.object({ product_id: z.uuid(), variant_id: z.uuid().nullable(), quantity: z.number().int().min(1).max(99) })).min(1, "Your bag is empty").max(50),
@@ -50,6 +52,12 @@ export async function placeOrder(input: PlaceOrderInput): Promise<ActionResult<{
   // (best effort; it must never block a new order).
   try { await createAdminClient().rpc("expire_unpaid_orders"); } catch { /* not configured or failed: ignore */ }
 
+  // Checking out again after a failed or cancelled payment: release this browser's previous unpaid
+  // order first, so it doesn't keep holding the same stock.
+  const cookieStore = await cookies();
+  const previous = cookieStore.get(PENDING_ORDER_COOKIE)?.value;
+  if (previous) await releaseUnpaidOrder(previous);
+
   // Prices, discounts, stock and totals are computed inside the database.
   const { data, error } = await supabase.rpc("place_order", {
     items,
@@ -70,8 +78,10 @@ export async function placeOrder(input: PlaceOrderInput): Promise<ActionResult<{
     await Promise.allSettled(tasks);
   }
 
+  const orderNumber = (data as { order_number: string }).order_number;
+  cookieStore.set(PENDING_ORDER_COOKIE, orderNumber, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 2 });
   updateTag(CATALOG_TAG); // stock and sales counts changed
-  return { ok: true, data: { orderNumber: (data as { order_number: string }).order_number } };
+  return { ok: true, data: { orderNumber } };
 }
 
 /** place_order raises language-neutral codes (see 0005_tanzania.sql); turn them into the shopper's language. */
@@ -114,11 +124,20 @@ export async function startPayment(input: z.infer<typeof payInput>): Promise<Act
   const phoneNumber = normalizeTzPhone(phone);
   if (!phoneNumber) return { ok: false, error: t.checkout.errors.mobile };
 
-  const db = createAdminClient();
+  let db: ReturnType<typeof createAdminClient>;
+  try {
+    db = createAdminClient();
+  } catch (err) {
+    console.error("Payments: SUPABASE_SERVICE_ROLE_KEY is not set", err);
+    return { ok: false, error: t.checkout.errors.generic };
+  }
   const { data: order } = await db.from("orders")
     .select("id, total, email, payment_status, shipping_address")
     .eq("order_number", orderNumber).eq("email", email.toLowerCase()).maybeSingle();
-  if (!order) return { ok: false, error: t.checkout.errors.generic };
+  if (!order) {
+    console.error("Payments: order not found when starting payment (check SUPABASE_SERVICE_ROLE_KEY)", orderNumber);
+    return { ok: false, error: t.checkout.errors.generic };
+  }
   if (order.payment_status !== "pending") return { ok: false, error: t.checkout.payment.alreadySettled };
 
   const addr = order.shipping_address as { full_name?: string; line1?: string; city?: string; region?: string; postal_code?: string };
@@ -129,12 +148,13 @@ export async function startPayment(input: z.infer<typeof payInput>): Promise<Act
   const webhook_url = process.env.SNIPPE_WEBHOOK_URL || `${SITE_URL}/api/snippe/webhook`;
   const metadata = { order_number: orderNumber };
   const done = `${SITE_URL}/checkout/success?order=${encodeURIComponent(orderNumber)}`;
+  const cancelled = `${done}&cancelled=1`;
 
   const body = kind === "mobile"
     ? { payment_type: "mobile", details: { amount, currency: "TZS" }, phone_number: phoneNumber, customer, webhook_url, metadata }
     : {
         payment_type: "card",
-        details: { amount, currency: "TZS", redirect_url: done, cancel_url: done },
+        details: { amount, currency: "TZS", redirect_url: done, cancel_url: cancelled },
         phone_number: phoneNumber,
         customer: { ...customer, address: addr.line1 || "N/A", city: addr.city || "Dar es Salaam", state: addr.region || "DSM", postcode: addr.postal_code || "00000", country: "TZ" },
         webhook_url,
@@ -143,7 +163,10 @@ export async function startPayment(input: z.infer<typeof payInput>): Promise<Act
 
   // ≤30 chars; stable per attempt so a retried request can't double-charge.
   const result = await createSnippePayment(body, `pay-${orderNumber}-${attemptId}`);
-  if (!result.ok) return { ok: false, error: result.error };
+  if (!result.ok) {
+    console.error("Payments: Snippe rejected the payment", orderNumber, kind, result.error);
+    return { ok: false, error: result.error };
+  }
 
   const { error } = await db.from("orders")
     .update({ payment_reference: result.payment.reference, payment_provider: "snippe" })
@@ -153,10 +176,8 @@ export async function startPayment(input: z.infer<typeof payInput>): Promise<Act
   return { ok: true, data: { reference: result.payment.reference, paymentUrl: result.payment.payment_url ?? null } };
 }
 
-/** Lightweight status poll used while the customer confirms the mobile-money prompt. */
+/** Status poll used while the customer confirms the mobile-money prompt. */
 export async function getPaymentStatus(orderNumber: string, email: string): Promise<"pending" | "paid" | "failed"> {
-  const db = createAdminClient();
-  const { data } = await db.from("orders").select("payment_status")
-    .eq("order_number", orderNumber.slice(0, 32)).eq("email", email.trim().toLowerCase()).maybeSingle();
-  return data?.payment_status === "paid" ? "paid" : data?.payment_status === "failed" ? "failed" : "pending";
+  const state = await checkOrderPayment(orderNumber, email);
+  return state === "paid" ? "paid" : state === "failed" ? "failed" : "pending";
 }

@@ -113,7 +113,8 @@ export function CheckoutClient({ email: initialEmail, addresses, signedIn }: {
   async function pay(orderNumber: string) {
     attempt.current += 1;
     const attemptId = `${Date.now().toString(36)}${attempt.current}`.slice(-10);
-    const res = await startPayment({ orderNumber, email: email.trim(), kind: payKind, phone: payKind === "mobile" ? mobile : (shippingAddress?.phone ?? ""), attemptId });
+    const res = await startPayment({ orderNumber, email: email.trim(), kind: payKind, phone: payKind === "mobile" ? mobile : (shippingAddress?.phone ?? ""), attemptId })
+      .catch(() => ({ ok: false as const, error: c.errors.generic, data: undefined }));
     if (!res.ok) { setPending((p) => p && { ...p, waiting: false }); setSubmitError(res.error); return; }
     if (payKind === "card") {
       if (!res.data?.paymentUrl) { setSubmitError(c.errors.generic); return; }
@@ -140,9 +141,8 @@ export function CheckoutClient({ email: initialEmail, addresses, signedIn }: {
           saveAddress: signedIn && addressId === "new" && saveAddress,
         });
         if (!res.ok) { setSubmitError(res.error); return; }
+        // The bag is kept until the payment succeeds, so a failed payment can simply be tried again.
         orderNumber = res.data!.orderNumber;
-        writeCoupon(null);
-        clearCart();
         setPending({ orderNumber, waiting: false, timedOut: false });
       }
       await pay(orderNumber);
@@ -157,15 +157,16 @@ export function CheckoutClient({ email: initialEmail, addresses, signedIn }: {
     const started = Date.now();
     let timer: ReturnType<typeof setTimeout>;
     const tick = async () => {
-      const status = await getPaymentStatus(waitingFor, email);
+      const status = await getPaymentStatus(waitingFor, email).catch(() => "pending" as const);
       if (stopped) return;
+      if (status === "paid") { writeCoupon(null); clearCart(); }
       if (status === "paid" || status === "failed") { router.replace(`/checkout/success?order=${encodeURIComponent(waitingFor)}`); return; }
       if (Date.now() - started > 120_000) { setPending((p) => p && { ...p, waiting: false, timedOut: true }); return; }
       timer = setTimeout(tick, 3000);
     };
     timer = setTimeout(tick, 3000);
     return () => { stopped = true; clearTimeout(timer); };
-  }, [waitingFor, email, router]);
+  }, [waitingFor, email, router, clearCart]);
 
   if (!ready) {
     return <div className="grid gap-10 lg:grid-cols-[1fr_420px]"><div className="space-y-4">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div><Skeleton className="h-96 rounded-[1.5rem]" /></div>;

@@ -54,3 +54,34 @@ export function verifyWebhook(rawBody: string, timestamp: string | null, signatu
   const b = Buffer.from(expected);
   return a.length === b.length && timingSafeEqual(a, b);
 }
+
+export type SnippeStatus = "pending" | "completed" | "failed" | "voided" | "expired";
+
+/**
+ * Asks Snippe for a payment's current status (GET /v1/payments/{reference}). Used as a fallback when
+ * the webhook hasn't arrived (e.g. a wrong webhook secret), so paid orders don't stay "pending".
+ * Returns null when Snippe can't be reached or the key isn't set.
+ */
+export async function getSnippePayment(reference: string): Promise<{ status: SnippeStatus; amount: number | null } | null> {
+  const apiKey = process.env.SNIPPE_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const res = await fetch(`${SNIPPE_BASE}/v1/payments/${encodeURIComponent(reference)}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    });
+    const json = (await res.json().catch(() => null)) as { data?: { status?: string; amount?: number | { value?: number } } } | null;
+    const status = json?.data?.status;
+    if (!res.ok || !status) {
+      console.error("Snippe status check failed", reference, res.status, json);
+      return null;
+    }
+    const raw = json.data?.amount;
+    const amount = typeof raw === "number" ? raw : typeof raw?.value === "number" ? raw.value : null;
+    return { status: status as SnippeStatus, amount };
+  } catch (err) {
+    console.error("Snippe status check error", reference, err);
+    return null;
+  }
+}

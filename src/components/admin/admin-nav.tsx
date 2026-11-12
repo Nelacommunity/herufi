@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, BadgePercent, FolderTree, LayoutDashboard, Menu, Package, Ship, ShieldCheck, ShoppingCart, Users } from "lucide-react";
+import { ArrowUpRight, BadgePercent, CreditCard, FolderTree, LayoutDashboard, Menu, Package, ShieldCheck, Ship, ShoppingCart, Users } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { Logo } from "@/components/layout/logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -21,6 +21,7 @@ const LINKS: { href: string; label: string; icon: typeof Package; exact?: boolea
   { href: "/admin/customers", label: "Customers", icon: Users, show: (p) => can(p, "customers.view") },
   { href: "/admin/discounts", label: "Discounts", icon: BadgePercent, show: () => true },
   { href: "/admin/shipping", label: "Shipping", icon: Ship, show: (p) => can(p, "shipping.manage") },
+  { href: "/admin/payments", label: "Payments", icon: CreditCard, show: (p) => can(p, "orders.view") },
   { href: "/admin/staff", label: "Staff", icon: ShieldCheck, show: (p) => isSuperAdmin(p) },
 ];
 

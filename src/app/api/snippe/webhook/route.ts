@@ -18,6 +18,9 @@ const OUTCOMES: Record<string, "paid" | "failed"> = {
 export async function POST(request: NextRequest) {
   const raw = await request.text();
   if (!verifyWebhook(raw, request.headers.get("x-webhook-timestamp"), request.headers.get("x-webhook-signature"))) {
+    console.error(process.env.SNIPPE_WEBHOOK_SECRET
+      ? "Snippe webhook rejected: signature or timestamp invalid (check SNIPPE_WEBHOOK_SECRET and the server clock)"
+      : "Snippe webhook rejected: SNIPPE_WEBHOOK_SECRET is not set");
     return new NextResponse("Invalid webhook", { status: 400 });
   }
 
