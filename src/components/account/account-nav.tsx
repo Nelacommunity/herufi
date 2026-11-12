@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Clock, CreditCard, Heart, LayoutDashboard, LogOut, MapPin, Package, Settings, User } from "lucide-react";
+import { Clock, Heart, LayoutDashboard, LogOut, MapPin, Package, Settings, User } from "lucide-react";
 import { useStore } from "@/providers/store-provider";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/client";
@@ -12,7 +12,6 @@ const LINKS = [
   { href: "/account/orders", key: "orders", icon: Package },
   { href: "/wishlist", key: "wishlist", icon: Heart },
   { href: "/account/addresses", key: "addresses", icon: MapPin },
-  { href: "/account/payment-methods", key: "payments", icon: CreditCard },
   { href: "/account/recently-viewed", key: "viewed", icon: Clock },
   { href: "/account/settings", key: "settings", icon: Settings },
 ] as const;

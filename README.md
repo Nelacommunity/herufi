@@ -6,7 +6,8 @@ Buy direct from China, delivered to Tanzania. A bilingual (English / Kiswahili) 
 
 1. **Create a Supabase project** and copy `.env.example` to `.env.local`, then fill in:
    - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Settings → API)
-   - `SUPABASE_SERVICE_ROLE_KEY`: used **only** by `scripts/create-admin.mjs`, never by the app
+   - `SUPABASE_SERVICE_ROLE_KEY`: server-only. Used by `scripts/create-admin.mjs` and by the payment code (Snippe webhook, starting a payment, payment status). Never expose it to the browser.
+   - `SNIPPE_API_KEY`, `SNIPPE_WEBHOOK_SECRET`: from the Snippe dashboard. Register `https://your-domain/api/snippe/webhook` as the webhook URL.
    - `SUPABASE_DB_URL`: the *Session pooler* connection string (Connect → Session pooler), used by the DB scripts
 2. **Install, migrate and seed**
    ```bash
@@ -37,7 +38,13 @@ The seed loads 8 categories and 54 products with multiple images, variants, disc
 
 Prices are TZS (seed values are USD × 2,600, rounded). Shipping from China: air cargo (10–14 days, free over TSh 250,000, else TSh 15,000), express air (5–7 days, TSh 45,000), sea freight (30–45 days, TSh 8,000). VAT is 18%. These rules live in `supabase/migrations/0005_tanzania.sql`.
 
-Checkout uses a **mock payment step** with mobile money (M-Pesa, Tigo Pesa, Airtel Money, HaloPesa; any valid TZ number) or card (any Luhn-valid number, e.g. `4242 4242 4242 4242`). Only the provider/brand and last four digits are stored. Integrate a real gateway (e.g. Selcom, AzamPay, DPO or Flutterwave) in `src/actions/checkout.ts` before going live.
+Payments go through **[Snippe](https://snippe.sh)** (`src/lib/snippe.ts`, `src/actions/checkout.ts`):
+
+- **Mobile money** (M-Pesa, Tigo Pesa, Airtel Money, HaloPesa): the customer gets a USSD prompt on their phone and enters their PIN; checkout waits for confirmation.
+- **Card**: the customer is sent to Snippe's hosted page, so card numbers never touch Herufi.
+- Orders are created **unpaid** and hold their stock. Only the signed webhook (`/api/snippe/webhook`) marks an order paid; the amount always comes from the order in the database, never from the browser.
+- Failed, expired or cancelled payments cancel the order and return its stock and coupon. Abandoned checkouts are released automatically (no payment started within 1 hour, or no answer from Snippe within 24 hours).
+- If money arrives for an order that had already expired, the order shows as **cancelled** with payment **paid** in the admin: refund or reinstate it.
 
 ## Languages
 
@@ -75,7 +82,7 @@ supabase/
 ### Key decisions
 
 - **Prices are never trusted from the browser.** `quote_order` and `place_order` (Postgres functions) resolve prices, variant surcharges, coupons, shipping and tax, lock and decrement stock, and record the order in one transaction. The cart and checkout display server quotes.
-- **RLS everywhere.** Users can read and write only their own profile, cart, wishlist, addresses, payment methods and views, and can read only their own orders. Profile `role`/`status`, product rating/sales counters and order totals are protected with column-level privileges. Staff roles are `admin` (only the permissions a super admin grants, e.g. create products or view orders) and `super_admin` (everything, including managing staff). Every admin read and write requires `has_permission(...)` at the database level *and* a server-side check in each action (see `supabase/migrations/0009_staff_permissions.sql` and `src/lib/permissions.ts`). Discount codes are assigned to a staff member so their orders and revenue can be tracked per admin. The service-role key is only used by a local CLI script.
+- **RLS everywhere.** Users can read and write only their own profile, cart, wishlist, addresses, payment methods and views, and can read only their own orders. Profile `role`/`status`, product rating/sales counters and order totals are protected with column-level privileges. Staff roles are `admin` (only the permissions a super admin grants, e.g. create products or view orders) and `super_admin` (everything, including managing staff). Every admin read and write requires `has_permission(...)` at the database level *and* a server-side check in each action (see `supabase/migrations/0009_staff_permissions.sql` and `src/lib/permissions.ts`). Discount codes are assigned to a staff member so their orders and revenue can be tracked per admin. The service-role key is only used server-side: by a local CLI script and by the Snippe payment code.
 - **Fast catalog pages.** Public catalog reads use a cookie-less client whose requests go through Next's data cache (tag `catalog`), so the home, category and product pages are statically generated and revalidated when an admin changes the catalog.
 - **Guest-friendly cart and wishlist.** Both live in local storage for guests, are merged into the account on sign-in, and then sync to Supabase.
 - **Search.** A weighted `tsvector` (name, brand, category, description) with prefix matching, plus `pg_trgm` word similarity for typos, behind a debounced, keyboard-navigable overlay.

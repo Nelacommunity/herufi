@@ -40,7 +40,7 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl bg-surface-2 p-5 text-sm"><MapPin className="h-5 w-5" /><p className="mt-3 font-medium">{a.shippingAddress}</p><p className="mt-1 text-muted">{addr.full_name}<br />{addr.line1}{addr.line2 ? `, ${addr.line2}` : ""}<br />{addr.city}{addr.region ? `, ${addr.region}` : ""} {addr.postal_code}{addr.phone && <><br />{addr.phone}</>}</p></div>
         <div className="rounded-2xl bg-surface-2 p-5 text-sm"><Truck className="h-5 w-5" /><p className="mt-3 font-medium">{delivery?.label ?? order.delivery_method}</p><p className="mt-1 text-muted">{delivery?.eta}</p></div>
-        <div className="rounded-2xl bg-surface-2 p-5 text-sm"><CreditCard className="h-5 w-5" /><p className="mt-3 font-medium">{a.payment}</p><p className="mt-1 text-muted">{fmt(t.checkout.endingIn, { brand: order.payment_method?.brand ?? "", last4: order.payment_method?.last4 ?? "••••" })}<br />{a.paymentStatus[order.payment_status] ?? order.payment_status}</p></div>
+        <div className="rounded-2xl bg-surface-2 p-5 text-sm"><CreditCard className="h-5 w-5" /><p className="mt-3 font-medium">{a.payment}</p><p className="mt-1 text-muted">{order.payment_method?.last4 ? fmt(t.checkout.endingIn, { brand: order.payment_method.brand ?? "", last4: order.payment_method.last4 }) : (order.payment_method?.brand || t.checkout.card)}<br />{a.paymentStatus[order.payment_status] ?? order.payment_status}</p></div>
       </div>
 
       <div className="rounded-2xl border border-border">

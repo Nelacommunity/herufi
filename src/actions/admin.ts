@@ -245,7 +245,11 @@ export async function updateOrderStatus(id: string, status: string): Promise<Act
   return guarded(async () => {
     const supabase = await admin("orders.update");
     const update: Record<string, string> = { status };
-    if (status === "cancelled") update.payment_status = "refunded";
+    if (status === "cancelled") {
+      // Only money that was actually received is refunded; an unpaid order is just closed.
+      const { data: cur } = await supabase.from("orders").select("payment_status").eq("id", id).maybeSingle();
+      update.payment_status = cur?.payment_status === "paid" ? "refunded" : "failed";
+    }
     const { error } = await supabase.from("orders").update(update).eq("id", id);
     if (error) return fail(error, "We couldn't update this order.");
     revalidatePath("/admin/orders", "layout");
