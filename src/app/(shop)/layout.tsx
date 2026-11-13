@@ -11,6 +11,8 @@ import { formatPrice } from "@/lib/utils";
 import { SITE } from "@/lib/constants";
 import { SITE_URL } from "@/lib/env";
 import { jsonLd } from "@/lib/seo";
+import { Suspense } from "react";
+import { AccountDeletedToast } from "@/components/account/account-deleted-toast";
 import { categoryName } from "@/lib/utils";
 
 export default async function ShopLayout({ children }: LayoutProps<"/">) {
@@ -75,6 +77,7 @@ export default async function ShopLayout({ children }: LayoutProps<"/">) {
       <SearchOverlay categories={categories} />
       <MobileMenu categories={categories} />
       <CartDrawer />
+      <Suspense><AccountDeletedToast /></Suspense>
     </>
   );
 }

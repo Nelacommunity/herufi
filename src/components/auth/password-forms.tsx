@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Turnstile, TURNSTILE_SITE_KEY, type TurnstileHandle } from "@/components/auth/turnstile";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MailCheck } from "lucide-react";
@@ -11,6 +12,8 @@ import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/config";
 
 export function ForgotPasswordForm() {
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const turnstile = useRef<TurnstileHandle>(null);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -24,8 +27,10 @@ export function ForgotPasswordForm() {
     setError(null);
     const { error } = await createClient().auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+      captchaToken: captcha ?? undefined,
     });
     setLoading(false);
+    turnstile.current?.reset();
     // Always show the same confirmation so the form can't be used to discover accounts.
     if (error && /rate limit/i.test(error.message)) setError(a.errors.rate);
     else setSent(true);
@@ -48,8 +53,9 @@ export function ForgotPasswordForm() {
       <p className="mt-2 text-muted">{a.forgotDesc}</p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <Field label={a.email} htmlFor="email"><Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+        <Turnstile ref={turnstile} onToken={setCaptcha} />
         {error && <p className="rounded-xl bg-sale-soft px-4 py-3 text-sm text-sale">{error}</p>}
-        <Button type="submit" size="lg" className="w-full" loading={loading}>{a.sendLink}</Button>
+        <Button type="submit" size="lg" className="w-full" loading={loading} disabled={Boolean(TURNSTILE_SITE_KEY) && !captcha}>{a.sendLink}</Button>
       </form>
       <p className="mt-8 text-center text-sm text-muted">{a.remembered} <Link href="/login" className="font-medium text-foreground underline underline-offset-4">{a.signIn}</Link></p>
     </div>

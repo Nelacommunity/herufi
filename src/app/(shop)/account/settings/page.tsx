@@ -1,5 +1,5 @@
 import { SettingsPanel } from "@/components/account/settings-panel";
-import { getProfile } from "@/lib/auth";
+import { getProfile, getUser } from "@/lib/auth";
 import { getI18n } from "@/i18n/server";
 
 export async function generateMetadata() {
@@ -8,6 +8,6 @@ export async function generateMetadata() {
 }
 
 export default async function SettingsPage() {
-  const profile = await getProfile();
-  return <SettingsPanel marketing={profile?.marketing_opt_in ?? false} />;
+  const [profile, user] = await Promise.all([getProfile(), getUser()]);
+  return <SettingsPanel marketing={profile?.marketing_opt_in ?? false} email={user?.email ?? ""} />;
 }

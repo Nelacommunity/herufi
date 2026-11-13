@@ -388,7 +388,7 @@ export const POLICY_TOPICS: HelpTopic[] = [
           "Encrypted connections (HTTPS), hashed passwords, strict access controls so that each team member can see only what their role needs, and row-level security in our database so customers can only ever see their own data.",
         ] },
         { heading: "Your rights", body: [
-          "You can ask us to give you a copy of your data, correct it, delete it, or stop using it for marketing or recommendations. You can update most details yourself in your account. To make any other request, email {email}. We'll reply within 30 days, and may need to verify your identity first.",
+          "You can ask us to give you a copy of your data, correct it, delete it, or stop using it for marketing or recommendations. You can update most details yourself in your account, and under Account → Settings you can download a copy of your data or delete your account at any time. To make any other request, email {email}. We'll reply within 30 days, and may need to verify your identity first.",
           "If you're not happy with how we've handled your data, you can complain to the Personal Data Protection Commission (PDPC) of Tanzania.",
         ] },
         { heading: "Children", body: [
@@ -439,7 +439,7 @@ export const POLICY_TOPICS: HelpTopic[] = [
           "Miunganisho iliyosimbwa (HTTPS), manenosiri yaliyofichwa, udhibiti mkali wa ufikiaji ili kila mfanyakazi aone kinachohitajika na nafasi yake tu, na usalama wa ngazi ya safu kwenye kanzidata yetu ili wateja waone taarifa zao pekee.",
         ] },
         { heading: "Haki zako", body: [
-          "Unaweza kutuomba nakala ya taarifa zako, kuzirekebisha, kuzifuta, au kuacha kuzitumia kwa matangazo au mapendekezo. Unaweza kubadilisha taarifa nyingi mwenyewe kwenye akaunti yako. Kwa ombi lingine lolote, tuma barua pepe kwa {email}. Tutajibu ndani ya siku 30, na huenda tukahitaji kuthibitisha utambulisho wako kwanza.",
+          "Unaweza kutuomba nakala ya taarifa zako, kuzirekebisha, kuzifuta, au kuacha kuzitumia kwa matangazo au mapendekezo. Unaweza kubadilisha taarifa nyingi mwenyewe kwenye akaunti yako, na kwenye Akaunti → Mipangilio unaweza kupakua nakala ya taarifa zako au kufuta akaunti yako wakati wowote. Kwa ombi lingine lolote, tuma barua pepe kwa {email}. Tutajibu ndani ya siku 30, na huenda tukahitaji kuthibitisha utambulisho wako kwanza.",
           "Usiporidhika na jinsi tulivyoshughulikia taarifa zako, unaweza kuwasilisha lalamiko kwa Tume ya Ulinzi wa Taarifa Binafsi (PDPC) ya Tanzania.",
         ] },
         { heading: "Watoto", body: [

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Mail } from "lucide-react";
@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { GOOGLE_AUTH_ENABLED } from "@/lib/env";
+import { Turnstile, TURNSTILE_SITE_KEY, type TurnstileHandle } from "@/components/auth/turnstile";
 import { safeNext } from "@/lib/utils";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/config";
@@ -29,6 +30,7 @@ function friendly(message: string, e: Dictionary["auth"]["errors"]) {
   if (/email not confirmed/i.test(message)) return e.unconfirmed;
   if (/already registered/i.test(message)) return e.exists;
   if (/rate limit|too many/i.test(message)) return e.rate;
+  if (/captcha/i.test(message)) return e.captcha;
   if (/password should be|at least 8/i.test(message)) return e.short;
   return message;
 }
@@ -47,6 +49,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(params.get("error"));
   const [sent, setSent] = useState<string | null>(null);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const turnstile = useRef<TurnstileHandle>(null);
+  const captchaToken = captcha ?? undefined;
   const supabase = createClient();
   const callback = (n: string) => `${window.location.origin}/auth/callback?next=${encodeURIComponent(n)}`;
 
@@ -57,16 +62,16 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     try {
       if (mode === "signup") {
         if (password.length < 8) throw new Error(a.errors.short);
-        const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name.trim() }, emailRedirectTo: callback(next) } });
+        const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name.trim() }, emailRedirectTo: callback(next), captchaToken } });
         if (error) throw error;
         if (data.session) { router.push(next); router.refresh(); }
         else setSent(fmt(a.sentConfirm, { email }));
       } else if (method === "magic") {
-        const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: callback(next), shouldCreateUser: true } });
+        const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: callback(next), shouldCreateUser: true, captchaToken } });
         if (error) throw error;
         setSent(fmt(a.sentMagic, { email }));
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
         if (error) throw error;
         router.push(next);
         router.refresh();
@@ -75,6 +80,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       setError(friendly((err as Error).message, a.errors));
     } finally {
       setLoading(false);
+      turnstile.current?.reset(); // each token works once
     }
   }
 
@@ -136,8 +142,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         {isLogin && method === "password" && (
           <div className="text-right"><Link href="/forgot-password" className="text-sm text-muted underline-offset-4 hover:text-foreground hover:underline">{a.forgot}</Link></div>
         )}
+        <Turnstile ref={turnstile} onToken={setCaptcha} />
         {error && <p className="rounded-xl bg-sale-soft px-4 py-3 text-sm text-sale" role="alert">{error}</p>}
-        <Button type="submit" size="lg" className="w-full" loading={loading}>
+        <Button type="submit" size="lg" className="w-full" loading={loading} disabled={Boolean(TURNSTILE_SITE_KEY) && !captcha}>
           {isLogin ? (method === "magic" ? a.emailMeLink : a.signIn) : a.createAccount}
         </Button>
       </form>

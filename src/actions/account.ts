@@ -9,6 +9,9 @@ import { addressSchema, isTzMobile } from "@/lib/validation";
 import { TZ_REGIONS } from "@/lib/constants";
 import { safeNext } from "@/lib/utils";
 import { rateLimit } from "@/lib/rate-limit";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { releaseUnpaidOrder } from "@/lib/payments";
+import { sendEmail } from "@/lib/email";
 import type { ActionResult } from "@/lib/types";
 import { getI18n } from "@/i18n/server";
 
@@ -157,4 +160,59 @@ export async function completeOnboarding(_: ActionResult | null, formData: FormD
 
   revalidatePath("/account", "layout");
   redirect(safeNext(next, "/"));
+}
+
+/**
+ * Deletes the signed-in customer's account (PDPA right to erasure). The customer must type their
+ * email to confirm. Unpaid orders are released, past orders are stripped of personal details and
+ * kept for accounting (prepare_account_deletion), the avatar is removed, then the auth user is
+ * deleted, which cascades to everything else tied to the account.
+ */
+export async function deleteMyAccount(confirmEmail: string): Promise<ActionResult> {
+  const { user, t, locale, supabase } = await authed();
+  const d = t.account.settings.delete;
+  if (!(await rateLimit("delete-account", 3, 3600))) return { ok: false, error: t.errors.tooMany };
+  if (!user.email || confirmEmail.trim().toLowerCase() !== user.email.toLowerCase()) return { ok: false, error: d.mismatch };
+
+  // Staff accounts are removed by a super admin, so nobody locks the shop out by accident.
+  const { data: profile } = await supabase.from("profiles").select("role").eq("user_id", user.id).maybeSingle();
+  if (profile?.role && profile.role !== "customer") return { ok: false, error: d.staff };
+
+  let db: ReturnType<typeof createAdminClient>;
+  try { db = createAdminClient(); } catch { return { ok: false, error: t.errors.generic }; }
+
+  // Give back stock held by unpaid orders first (Snippe is checked, so a paid one is kept).
+  const [byUser, byEmail] = await Promise.all([
+    db.from("orders").select("order_number").eq("payment_status", "pending").eq("user_id", user.id),
+    db.from("orders").select("order_number").eq("payment_status", "pending").eq("email", user.email.toLowerCase()),
+  ]);
+  const unpaid = new Set([...(byUser.data ?? []), ...(byEmail.data ?? [])].map((o) => o.order_number));
+  for (const n of unpaid) await releaseUnpaidOrder(n);
+
+  const { error: prepError } = await db.rpc("prepare_account_deletion", { p_user: user.id });
+  if (prepError) {
+    if (prepError.message.includes("ACTIVE_ORDERS")) return { ok: false, error: d.activeOrders };
+    console.error("Account deletion: prepare failed", user.id, prepError);
+    return { ok: false, error: t.errors.generic };
+  }
+
+  const { data: files } = await db.storage.from("avatars").list(user.id);
+  if (files?.length) await db.storage.from("avatars").remove(files.map((f) => `${user.id}/${f.name}`));
+
+  const { error: deleteError } = await db.auth.admin.deleteUser(user.id);
+  if (deleteError) {
+    console.error("Account deletion: auth delete failed", user.id, deleteError);
+    return { ok: false, error: t.errors.generic };
+  }
+
+  // A short confirmation (best effort; the account is already gone).
+  await sendEmail({
+    to: user.email,
+    subject: d.emailSubject,
+    text: d.emailBody,
+    html: `<p style="font-family:sans-serif;font-size:15px;line-height:1.6">${d.emailBody.replace(/\n/g, "<br>")}</p>`,
+  }).catch(() => undefined);
+
+  await supabase.auth.signOut().catch(() => undefined);
+  redirect(locale === "sw" ? "/?account=deleted&lang=sw" : "/?account=deleted");
 }
