@@ -81,13 +81,15 @@ const productSchema = z.object({
   group_size: z.coerce.number().int().min(2).max(5).optional(),
   images: z.array(imageSchema).max(12),
   variants: z.array(variantSchema).max(50),
+  // Supplier page (1688, Taobao, Alibaba…). Staff only: stored in product_sources, never on products.
+  source_url: z.string().trim().max(2000).refine((v) => v === "" || /^https?:\/\/\S+$/i.test(v), "Enter a full supplier link starting with http:// or https://").optional(),
 });
 export type ProductPayload = z.input<typeof productSchema>;
 
 export async function saveProduct(payload: ProductPayload): Promise<ActionResult<{ id: string }>> {
   const parsed = productSchema.safeParse(payload);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Please check the form." };
-  const { id, images, variants, group_price, group_size, ...p } = parsed.data;
+  const { id, images, variants, group_price, group_size, source_url, ...p } = parsed.data;
   if (p.compare_at_price != null && p.compare_at_price <= p.price) p.compare_at_price = null;
   if (group_price != null && group_price >= p.price) return { ok: false, error: "The group price must be lower than the normal price." };
   // Rows like "800k: standard" + "398000K: ultimate" would show as separate options shoppers can't combine.
@@ -145,6 +147,17 @@ export async function saveProduct(payload: ProductPayload): Promise<ActionResult
       const { error } = await supabase.from("products").update({ group_price, group_size: group_size ?? 2 }).eq("id", productId!);
       if (error?.code === "42703") {
         if (group_price != null) throw new Error("Group buying needs the 0013_engagement.sql migration. Run it in Supabase first.");
+      } else if (error) throw error;
+    }
+
+    // Supplier link (0019). Undefined = form didn't send it (leave as is); "" = remove it.
+    if (source_url !== undefined) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = source_url
+        ? await supabase.from("product_sources").upsert({ product_id: productId!, source_url, updated_by: user?.id ?? null, updated_at: new Date().toISOString() })
+        : await supabase.from("product_sources").delete().eq("product_id", productId!);
+      if (error?.code === "42P01" || error?.code === "PGRST205") {
+        if (source_url) throw new Error("The supplier link needs the 0019_product_sources.sql migration. Run pnpm db:migrate first.");
       } else if (error) throw error;
     }
 

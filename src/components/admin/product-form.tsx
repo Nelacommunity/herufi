@@ -22,8 +22,10 @@ type Variant = { id?: string; name: string; value: string; additional_price: str
 const card = "rounded-2xl border border-border bg-surface p-5 sm:p-6";
 
 /** `groupDeal` is undefined when the database has no group buying yet (0013_engagement.sql); the section is hidden. */
-export function ProductForm({ product, categories, canEdit = true, canDelete = false, groupDeal }: {
+export function ProductForm({ product, categories, canEdit = true, canDelete = false, groupDeal, sourceUrl = "" }: {
   product: Product | null; categories: Category[]; canEdit?: boolean; canDelete?: boolean; groupDeal?: { price: number | null; size: number };
+  /** Supplier link (staff only, from product_sources). */
+  sourceUrl?: string;
 }) {
   const router = useRouter();
   const [saving, startSave] = useTransition();
@@ -41,6 +43,7 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
   const [groupPrice, setGroupPrice] = useState(groupDeal?.price != null ? String(groupDeal.price) : "");
   const [groupSize, setGroupSize] = useState(String(groupDeal?.size ?? 2));
   const [sku, setSku] = useState(product?.sku ?? "");
+  const [source, setSource] = useState(sourceUrl);
   const [stock, setStock] = useState(product?.stock_quantity.toString() ?? "0");
   const [featured, setFeatured] = useState(product?.is_featured ?? false);
   const [active, setActive] = useState(product?.is_active ?? true);
@@ -112,6 +115,7 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
       details: details.split("\n").map((d) => d.trim()).filter(Boolean),
       specifications,
       price: Number(price), compare_at_price: compareAt ? Number(compareAt) : null,
+      source_url: source.trim(),
       sku: sku || null, stock_quantity: Number(stock) || 0, is_featured: featured, is_active: active,
       weight_kg: Number(weight), length_cm: Number(dims.l), width_cm: Number(dims.w), height_cm: Number(dims.h), shipping_methods: methods,
       ...(groupDeal ? { group_price: groupPrice.trim() ? Number(groupPrice) : null, group_size: Number(groupSize) } : {}),
@@ -286,6 +290,14 @@ export function ProductForm({ product, categories, canEdit = true, canDelete = f
             <Field label="Stock" htmlFor="stock"><Input id="stock" inputMode="numeric" value={activeVariants.length ? String(activeVariants.reduce((n, v) => n + (Number(v.stock_quantity) || 0), 0)) : stock} disabled={activeVariants.length > 0} onChange={(e) => setStock(e.target.value.replace(/\D/g, ""))} /></Field>
           </div>
           {activeVariants.length > 0 && <p className="mt-3 text-sm text-muted">Calculated from colour and size stock.</p>}
+          <div className="mt-5 rounded-xl border border-dashed border-border-strong p-4">
+            <Field label="Supplier link (staff only)" htmlFor="source_url" optional hint="The 1688, Taobao or Alibaba page you buy this from. Customers never see it; it shows on orders so staff can reorder.">
+              <div className="flex gap-2">
+                <Input id="source_url" type="url" inputMode="url" placeholder="https://detail.1688.com/offer/…" value={source} onChange={(e) => setSource(e.target.value)} />
+                {/^https?:\/\//i.test(source.trim()) && <a href={source.trim()} target="_blank" rel="noreferrer noopener" className="inline-flex h-12 shrink-0 items-center rounded-xl border border-border-strong px-3 text-sm hover:border-foreground">Open</a>}
+              </div>
+            </Field>
+          </div>
         </section>
 
         <section className={card}>

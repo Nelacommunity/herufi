@@ -25,6 +25,12 @@ export default async function AdminOrderDetail({ params }: PageProps<"/admin/ord
   if (!data) notFound();
   const order = data as Order;
   const customer = order.user_id ? (await supabase.from("profiles").select("user_id, full_name, email, status").eq("user_id", order.user_id).maybeSingle()).data : null;
+  // Supplier links for buying the items in China (staff only, 0019_product_sources.sql).
+  const productIds = order.items.map((i) => i.product_id).filter((x): x is string => Boolean(x));
+  const { data: sources } = productIds.length
+    ? await supabase.from("product_sources").select("product_id, source_url").in("product_id", productIds)
+    : { data: [] as { product_id: string; source_url: string }[] };
+  const sourceOf = new Map((sources ?? []).map((s) => [s.product_id, s.source_url]));
   const a = order.shipping_address;
   const card = "rounded-2xl border border-border bg-surface p-5";
 
@@ -43,6 +49,7 @@ export default async function AdminOrderDetail({ params }: PageProps<"/admin/ord
                   <div className="min-w-0 flex-1 text-sm">
                     {i.product_id ? <Link href={`/admin/products/${i.product_id}`} className="font-medium hover:underline">{i.product_name}</Link> : <p className="font-medium">{i.product_name}</p>}
                     <p className="text-muted">{[i.variant, `${formatPrice(i.price)} × ${i.quantity}`].filter(Boolean).join(" · ")}</p>
+                    {i.product_id && sourceOf.get(i.product_id) && <a href={sourceOf.get(i.product_id)} target="_blank" rel="noreferrer noopener" className="mt-1 inline-flex items-center gap-1 text-xs font-medium underline underline-offset-4">Supplier link ↗</a>}
                   </div>
                   <p className="text-sm font-medium tabular-nums">{formatPrice(i.price * i.quantity)}</p>
                 </li>
