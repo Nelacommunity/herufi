@@ -13,8 +13,8 @@ export const BUSINESS = {
   /** TRA VAT registration number (VRN), if VAT-registered. */
   vrn: "",
   address: "Mikocheni B, Dar es Salaam, Tanzania",
-  email: "hello@herufi.co.tz",
-  phone: "+255 754 000 123",
+  email: "support@herufi.shop",
+  phone: "+86 139 9851 2986",
   hours: { en: "every day, 8am to 8pm EAT", sw: "kila siku, saa 2 asubuhi hadi saa 2 usiku" },
 } as const;
 

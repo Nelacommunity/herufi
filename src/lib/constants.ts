@@ -5,8 +5,8 @@ export const SITE = {
   tagline: "Factory prices. Delivered to Tanzania.",
   description:
     "Buy direct from verified factories in China and get it delivered across Tanzania. Customs handled, pay in shillings with M-Pesa or card.",
-  email: "hello@herufi.co.tz",
-  phone: "+255 754 000 123",
+  email: "support@herufi.shop",
+  phone: "+86 139 9851 2986",
   /**
    * Official profiles (Instagram, TikTok, Facebook, X, YouTube, LinkedIn, Google Business Profile…).
    * Listed as schema.org `sameAs` so Google and AI assistants can tie them to the same business.

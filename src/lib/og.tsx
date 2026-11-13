@@ -19,7 +19,7 @@ const GREEN = "#2f7a4b";
 const SALE = "#c2410c";
 
 const DOMAIN = (() => {
-  try { return new URL(SITE_URL).host.replace(/^www\./, ""); } catch { return "herufi.co.tz"; }
+  try { return new URL(SITE_URL).host.replace(/^www\./, ""); } catch { return "herufi.shop"; }
 })();
 
 /**

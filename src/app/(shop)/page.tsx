@@ -49,7 +49,7 @@ export default async function HomePage() {
       "@type": "WebSite",
       "@id": `${SITE_URL}/#website`,
       name: SITE.name,
-      alternateName: ["Herufi Tanzania", "herufi.co.tz"],
+      alternateName: ["Herufi Tanzania", "herufi.shop"],
       publisher: { "@id": `${SITE_URL}/#organization` },
       url: SITE_URL,
       inLanguage: ["en-TZ", "sw-TZ"],

@@ -113,16 +113,16 @@ const GUIDES: HelpTopic[] = [
     en: {
       title: "Contact us", summary: "Our team in Dar es Salaam is here every day, 8am to 8pm.",
       sections: [
-        { heading: "WhatsApp & phone", body: ["+255 754 000 123, every day from 8am to 8pm EAT."] },
-        { heading: "Email", body: ["hello@herufi.co.tz. We reply within one business day."] },
+        { heading: "WhatsApp & phone", body: ["{phone}, every day from 8am to 8pm EAT."] },
+        { heading: "Email", body: ["{email}. We reply within one business day."] },
         { heading: "Visit us", body: ["Collection point: Mikocheni B, Dar es Salaam. Monday to Saturday, 9am to 6pm."] },
       ],
     },
     sw: {
       title: "Wasiliana nasi", summary: "Timu yetu ya Dar es Salaam ipo kila siku, saa 2 asubuhi hadi saa 2 usiku.",
       sections: [
-        { heading: "WhatsApp na simu", body: ["+255 754 000 123, kila siku saa 2 asubuhi hadi saa 2 usiku."] },
-        { heading: "Barua pepe", body: ["hello@herufi.co.tz. Tunajibu ndani ya siku moja ya kazi."] },
+        { heading: "WhatsApp na simu", body: ["{phone}, kila siku saa 2 asubuhi hadi saa 2 usiku."] },
+        { heading: "Barua pepe", body: ["{email}. Tunajibu ndani ya siku moja ya kazi."] },
         { heading: "Tutembelee", body: ["Kituo cha kuchukulia mizigo: Mikocheni B, Dar es Salaam. Jumatatu hadi Jumamosi, saa 3 asubuhi hadi saa 12 jioni."] },
       ],
     },
