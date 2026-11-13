@@ -1,4 +1,6 @@
 import "server-only";
+import { after } from "next/server";
+import { notifyOrder } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSnippePayment } from "@/lib/snippe";
 
@@ -21,7 +23,7 @@ export async function checkOrderPayment(orderNumber: string, email?: string): Pr
     return "error";
   }
 
-  let query = db.from("orders").select("payment_status, payment_reference, total").eq("order_number", orderNumber.slice(0, 32));
+  let query = db.from("orders").select("id, payment_status, payment_reference, total").eq("order_number", orderNumber.slice(0, 32));
   if (email) query = query.eq("email", email.trim().toLowerCase());
   const { data: order, error } = await query.maybeSingle();
   if (error) {
@@ -44,6 +46,7 @@ export async function checkOrderPayment(orderNumber: string, email?: string): Pr
     }
     const { data, error: settleError } = await db.rpc("settle_order_payment", { p_reference: order.payment_reference, p_outcome: "paid" });
     if (settleError) { console.error("Payments: settle (paid) failed", orderNumber, settleError); return "pending"; }
+    if (data === "paid") after(() => notifyOrder(order.id, "confirmed"));
     return data === "paid" || data === "already_paid" ? "paid" : "failed";
   }
 

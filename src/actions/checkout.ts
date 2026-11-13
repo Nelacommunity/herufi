@@ -36,7 +36,7 @@ const orderSchema = z.object({
 export type PlaceOrderInput = z.infer<typeof orderSchema>;
 
 export async function placeOrder(input: PlaceOrderInput): Promise<ActionResult<{ orderNumber: string }>> {
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
   const e = t.checkout.errors;
   const parsed = orderSchema.safeParse(input);
   if (!parsed.success) {
@@ -79,6 +79,8 @@ export async function placeOrder(input: PlaceOrderInput): Promise<ActionResult<{
   }
 
   const orderNumber = (data as { order_number: string }).order_number;
+  // Order update emails are written in the language the shopper checked out in (0020).
+  try { await createAdminClient().from("orders").update({ locale }).eq("order_number", orderNumber); } catch { /* emails fall back to Kiswahili */ }
   cookieStore.set(PENDING_ORDER_COOKIE, orderNumber, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 2 });
   updateTag(CATALOG_TAG); // stock and sales counts changed
   return { ok: true, data: { orderNumber } };

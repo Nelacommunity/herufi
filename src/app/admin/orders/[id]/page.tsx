@@ -5,6 +5,7 @@ import { ArrowLeft, CreditCard, Mail, MapPin, Truck, User } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { OrderStatusSelect } from "@/components/admin/order-status-select";
 import { ShipDateSelect } from "@/components/admin/ship-batch";
+import { OrderEmails, type OrderEmailRow } from "@/components/admin/order-emails";
 import { OrderTimeline } from "@/components/account/order-status";
 import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth";
@@ -30,6 +31,8 @@ export default async function AdminOrderDetail({ params }: PageProps<"/admin/ord
   const { data: sources } = productIds.length
     ? await supabase.from("product_sources").select("product_id, source_url").in("product_id", productIds)
     : { data: [] as { product_id: string; source_url: string }[] };
+  // Order update emails (0020_order_notifications.sql); a missing table just shows none.
+  const { data: emails } = await supabase.from("order_notifications").select("event, status, attempts, last_error, sent_at, created_at").eq("order_id", order.id).order("created_at");
   const sourceOf = new Map((sources ?? []).map((s) => [s.product_id, s.source_url]));
   const a = order.shipping_address;
   const card = "rounded-2xl border border-border bg-surface p-5";
@@ -89,6 +92,9 @@ export default async function AdminOrderDetail({ params }: PageProps<"/admin/ord
             <h2 className="flex items-center gap-2 text-sm font-semibold"><CreditCard className="h-4 w-4" /> Payment</h2>
             <p className="mt-3 text-sm text-muted">{order.payment_method?.brand ?? "Card"} ending in {order.payment_method?.last4 ?? "••••"}</p>
             <p className="mt-1 text-sm">Status: <span className="font-medium capitalize">{order.payment_status}</span></p>
+          </section>
+          <section className={card}>
+            <OrderEmails orderId={order.id} rows={(emails ?? []) as OrderEmailRow[]} canResend={can(profile, "orders.update")} />
           </section>
         </div>
       </div>

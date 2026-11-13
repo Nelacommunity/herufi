@@ -1,4 +1,5 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
+import { notifyOrder } from "@/lib/notifications";
 import { verifyWebhook } from "@/lib/snippe";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -44,6 +45,10 @@ export async function POST(request: NextRequest) {
     return new NextResponse("Settlement failed", { status: 500 });
   }
 
+  if (settled === "paid") {
+    const { data: order } = await db.from("orders").select("id").eq("payment_reference", reference).maybeSingle();
+    if (order) after(() => notifyOrder(order.id, "confirmed"));
+  }
   // Money arrived for an order that had already been cancelled (e.g. it expired first): staff must refund or reinstate it.
   if (settled === "late_payment") console.error("Snippe: payment completed for a cancelled order; refund or reinstate it", reference);
   return new NextResponse("OK", { status: 200 });

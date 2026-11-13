@@ -13,6 +13,8 @@ import type { ActionResult, OrderStatus } from "@/lib/types";
 import { slugify } from "@/lib/utils";
 import { sendPendingPushes } from "@/lib/push";
 import { consistentOptions } from "@/lib/variant-options";
+import { notifyOrder } from "@/lib/notifications";
+import { ORDER_EVENTS, type OrderEvent } from "@/lib/order-emails";
 
 /**
  * Every admin action re-checks the caller's permission server-side; Row Level Security (has_permission())
@@ -258,13 +260,17 @@ export async function updateOrderStatus(id: string, status: string): Promise<Act
   return guarded(async () => {
     const supabase = await admin("orders.update");
     const update: Record<string, string> = { status };
+    const { data: cur } = await supabase.from("orders").select("status, payment_status").eq("id", id).maybeSingle();
     if (status === "cancelled") {
       // Only money that was actually received is refunded; an unpaid order is just closed.
-      const { data: cur } = await supabase.from("orders").select("payment_status").eq("id", id).maybeSingle();
       update.payment_status = cur?.payment_status === "paid" ? "refunded" : "failed";
     }
     const { error } = await supabase.from("orders").update(update).eq("id", id);
     if (error) return fail(error, "We couldn't update this order.");
+    // Email the customer when the order actually moves (a cancelled order only if it had been paid).
+    const changed = cur && cur.status !== status;
+    const emailable = ORDER_EVENTS.includes(status as OrderEvent) && (status !== "cancelled" || cur?.payment_status === "paid");
+    if (changed && emailable) after(() => notifyOrder(id, status as OrderEvent));
     revalidatePath("/admin/orders", "layout");
     revalidatePath("/admin");
     return { ok: true, message: `Order marked as ${ORDER_STATUS_LABEL[status as OrderStatus].toLowerCase()}` };
@@ -279,8 +285,11 @@ export async function dispatchBatch(date: string): Promise<ActionResult> {
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   return guarded(async () => {
     const supabase = await admin("orders.update");
+    // The packed orders this batch ships, so each customer gets a "shipped" email.
+    const { data: leaving } = await supabase.from("orders").select("id").eq("status", "processing").lte("ship_date", parsed.data);
     const { data, error } = await supabase.rpc("admin_dispatch_batch", { p_date: parsed.data }).single<{ shipped: number; rolled: number }>();
     if (error) return fail(error, "We couldn't dispatch this batch.");
+    if (leaving?.length) after(async () => { for (const o of leaving) await notifyOrder(o.id, "shipped"); });
     revalidatePath("/admin/orders", "layout");
     revalidatePath("/admin");
     const rolled = data.rolled ? `, ${data.rolled} moved to the next batch` : "";
@@ -494,5 +503,16 @@ export async function saveEngagementSettings(_: ActionResult | null, formData: F
     if (!data?.length) return { ok: false, error: "You do not have permission to do that." };
     revalidatePath("/admin/discounts");
     return { ok: true, message: "Rewards updated" };
+  });
+}
+
+/** Staff "Send again" for one order update email. */
+export async function resendOrderEmail(orderId: string, event: string): Promise<ActionResult> {
+  if (!z.uuid().safeParse(orderId).success || !ORDER_EVENTS.includes(event as OrderEvent)) return { ok: false, error: "Unknown email" };
+  return guarded(async () => {
+    await admin("orders.update");
+    await notifyOrder(orderId, event as OrderEvent, { force: true });
+    revalidatePath(`/admin/orders/${orderId}`);
+    return { ok: true, message: "Email sent again" };
   });
 }
