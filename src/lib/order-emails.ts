@@ -57,7 +57,7 @@ const COPY: Record<Locale, Record<OrderEvent, (c: Ctx) => { subject: string; tit
       title: "Delivered. Enjoy!",
       body: [
         `Order ${c.number} has been delivered. We hope you love it.`,
-        "If anything isn't right, you can return unused items within 14 days. Just reply to this email or contact us.",
+        "If anything isn't right, you can return unused items within 14 days. Contact us using the details below.",
       ],
     }),
     cancelled: (c) => ({
@@ -104,7 +104,7 @@ const COPY: Record<Locale, Record<OrderEvent, (c: Ctx) => { subject: string; tit
       title: "Imefika. Furahia!",
       body: [
         `Oda ${c.number} imefikishwa. Tunatumaini utaipenda.`,
-        "Kama kuna tatizo, unaweza kurudisha bidhaa ambayo haijatumika ndani ya siku 14. Jibu barua pepe hii au wasiliana nasi.",
+        "Kama kuna tatizo, unaweza kurudisha bidhaa ambayo haijatumika ndani ya siku 14. Wasiliana nasi kwa mawasiliano yaliyo hapa chini.",
       ],
     }),
     cancelled: (c) => ({
@@ -121,8 +121,8 @@ const COPY: Record<Locale, Record<OrderEvent, (c: Ctx) => { subject: string; tit
 };
 
 const LABELS: Record<Locale, { hi: string; items: string; qty: string; subtotal: string; discount: string; shipping: string; tax: string; total: string; deliverTo: string; view: string; help: string; free: string }> = {
-  en: { hi: "Hi", items: "Your order", qty: "Qty", subtotal: "Subtotal", discount: "Discount", shipping: "Shipping", tax: "VAT (18%)", total: "Total", deliverTo: "Delivering to", view: "View your order", help: "Questions? Reply to this email or contact us on", free: "Free" },
-  sw: { hi: "Habari", items: "Oda yako", qty: "Idadi", subtotal: "Jumla ndogo", discount: "Punguzo", shipping: "Usafirishaji", tax: "VAT (18%)", total: "Jumla", deliverTo: "Inapelekwa kwa", view: "Tazama oda yako", help: "Una swali? Jibu barua pepe hii au wasiliana nasi kwa", free: "Bure" },
+  en: { hi: "Hi", items: "Your order", qty: "Qty", subtotal: "Subtotal", discount: "Discount", shipping: "Shipping", tax: "VAT (18%)", total: "Total", deliverTo: "Delivering to", view: "View your order", help: "This is an automatic email, so please don't reply. Questions? Contact us on", free: "Free" },
+  sw: { hi: "Habari", items: "Oda yako", qty: "Idadi", subtotal: "Jumla ndogo", discount: "Punguzo", shipping: "Usafirishaji", tax: "VAT (18%)", total: "Jumla", deliverTo: "Inapelekwa kwa", view: "Tazama oda yako", help: "Hii ni barua pepe ya moja kwa moja, tafadhali usiijibu. Una swali? Wasiliana nasi kwa", free: "Bure" },
 };
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
