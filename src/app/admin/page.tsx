@@ -4,6 +4,7 @@ import { AdminPageHeader } from "@/components/admin/page-header";
 import { RevenueChart } from "@/components/admin/revenue-chart";
 import { OrderStatusBadge } from "@/components/account/order-status";
 import { createClient } from "@/lib/supabase/server";
+import { cleanUpFailedOrdersQuickly } from "@/lib/payments";
 import { requireAdmin } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { StaffHome } from "@/components/admin/staff-home";
@@ -37,10 +38,12 @@ export default async function AdminOverview({ searchParams }: PageProps<"/admin"
   const { profile } = await requireAdmin();
   const denied = (await searchParams).denied === "1";
   if (!can(profile, "analytics.view")) return <StaffHome profile={profile} denied={denied} />;
+  // Remove failed checkouts first so they never show up in the numbers below.
+  await cleanUpFailedOrdersQuickly();
   const supabase = await createClient();
   const [{ data: m, error }, recent, lowStock] = await Promise.all([
     supabase.rpc("admin_metrics", { days: 30 }),
-    supabase.from("orders").select("id, order_number, email, total, status, created_at").order("created_at", { ascending: false }).limit(6),
+    supabase.from("orders").select("id, order_number, email, total, status, created_at").in("payment_status", ["paid", "refunded"]).order("created_at", { ascending: false }).limit(6),
     supabase.from("products").select("id, name, stock_quantity").eq("is_active", true).lt("stock_quantity", 10).order("stock_quantity").limit(6),
   ]);
   if (error || !m) throw new Error(error?.message ?? "Could not load metrics");

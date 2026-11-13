@@ -155,7 +155,7 @@ export async function getReviews(productId: string): Promise<Review[]> {
   const db = createPublicClient(120);
   const { data, error } = await db
     .from("reviews")
-    .select("id, author_name, rating, title, content, created_at, user_id")
+    .select("id, author_name, rating, title, content, created_at, verified")
     .eq("product_id", productId)
     .order("created_at", { ascending: false })
     .limit(50);

@@ -17,7 +17,7 @@ export default async function AdminCustomers({ searchParams }: PageProps<"/admin
   if (q) query = query.or(`full_name.ilike.%${q}%,email.ilike.%${q}%`);
   const { data: customers, count } = await query;
   const ids = (customers ?? []).map((c) => c.user_id);
-  const { data: orders } = ids.length ? await supabase.from("orders").select("user_id, total, created_at").in("user_id", ids).neq("status", "cancelled") : { data: [] };
+  const { data: orders } = ids.length ? await supabase.from("orders").select("user_id, total, created_at").in("user_id", ids).neq("status", "cancelled").eq("payment_status", "paid") : { data: [] };
   const stats = new Map<string, { n: number; spent: number; last: string }>();
   for (const o of orders ?? []) {
     const s = stats.get(o.user_id) ?? { n: 0, spent: 0, last: o.created_at };

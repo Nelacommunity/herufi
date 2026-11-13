@@ -63,13 +63,65 @@ export const PENDING_ORDER_COOKIE = "herufi_pending_order";
  * stock held by their previous unpaid order. Snippe is asked first, so an order that was in fact
  * paid is marked paid instead of being cancelled.
  */
-export async function releaseUnpaidOrder(orderNumber: string): Promise<void> {
+export async function releaseUnpaidOrder(orderNumber: string): Promise<PaymentState | "cancelled"> {
   try {
     const state = await checkOrderPayment(orderNumber);
-    if (state !== "pending") return;
+    if (state !== "pending") return state;
     const { error } = await createAdminClient().rpc("cancel_unpaid_order", { p_order_number: orderNumber });
-    if (error) console.error("Payments: could not release unpaid order", orderNumber, error);
+    if (error) { console.error("Payments: could not release unpaid order", orderNumber, error); return "error"; }
+    return "cancelled";
   } catch (err) {
     console.error("Payments: could not release unpaid order", orderNumber, err);
+    return "error";
   }
+}
+
+const TEN_MINUTES = 10 * 60_000;
+
+/**
+ * Removes failed orders so they don't clutter the dashboard and order lists:
+ * 1. releases unpaid checkouts where no payment started within 10 minutes (expire_unpaid_orders),
+ * 2. asks Snippe about orders still waiting after 10 minutes (settling them paid or failed),
+ * 3. deletes orders that failed more than 10 minutes ago, unless Snippe shows the payment as
+ *    completed (then it's recorded as a late payment for staff) or still open (then it waits).
+ * Best effort and bounded; never throws.
+ */
+export async function cleanUpFailedOrders(limit = 20): Promise<{ deleted: number }> {
+  let deleted = 0;
+  try {
+    const db = createAdminClient();
+    const cutoff = new Date(Date.now() - TEN_MINUTES).toISOString();
+    await db.rpc("expire_unpaid_orders");
+
+    const { data: waiting } = await db.from("orders").select("order_number")
+      .eq("payment_status", "pending").eq("status", "pending").not("payment_reference", "is", null)
+      .lt("created_at", cutoff).order("created_at").limit(limit);
+    for (const o of waiting ?? []) await checkOrderPayment(o.order_number);
+
+    const { data: failed } = await db.from("orders").select("id, order_number, payment_reference")
+      .eq("payment_status", "failed").eq("status", "cancelled")
+      .lt("updated_at", cutoff).order("updated_at").limit(limit);
+    for (const o of failed ?? []) {
+      if (o.payment_reference) {
+        const remote = await getSnippePayment(o.payment_reference);
+        if (!remote || remote.status === "pending") continue; // unknown or still open: never delete
+        if (remote.status === "completed") {
+          await db.rpc("settle_order_payment", { p_reference: o.payment_reference, p_outcome: "paid" });
+          console.error("Payments: failed order was paid after all; kept for staff to refund", o.order_number);
+          continue;
+        }
+      }
+      const { data: ok, error } = await db.rpc("delete_failed_order", { p_order_id: o.id });
+      if (error) console.error("Payments: could not delete failed order", o.order_number, error);
+      else if (ok) deleted++;
+    }
+  } catch (err) {
+    console.error("Payments: clean-up failed", err);
+  }
+  return { deleted };
+}
+
+/** Runs the clean-up but gives up waiting after `ms`, so a slow Snippe never stalls a page. */
+export async function cleanUpFailedOrdersQuickly(ms = 4000) {
+  await Promise.race([cleanUpFailedOrders(), new Promise((r) => setTimeout(r, ms))]);
 }

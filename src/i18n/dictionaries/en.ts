@@ -242,6 +242,7 @@ const en = {
     reviewsTitle: "Customer reviews",
     reviewsCount: "{n} reviews",
     verifiedBuyer: "Verified buyer",
+    customer: "Customer",
     noReviewsTitle: "No reviews yet",
     noReviewsDesc: "Be the first to share your thoughts.",
     writeReview: "Write a review",
@@ -396,6 +397,7 @@ const en = {
     demoNote: "Payments are processed securely by Snippe.",
     payment: {
       alreadySettled: "This order has already been paid or closed.",
+      tooManyAttempts: "Too many payment attempts for this order. Please place the order again or contact us.",
       waitingTitle: "Confirm on your phone",
       waitingBody: "We sent a payment prompt to {phone}. Enter your PIN to approve it. This page updates automatically.",
       cardNote: "You'll be taken to a secure Snippe page to enter your card details. We never see or store your card number.",
@@ -430,6 +432,8 @@ const en = {
     updateBag: "Update your bag",
     emptyDesc: "Add a few things you love, then come back to check out.",
     errors: {
+      tooManyPending: "You already have unpaid orders waiting. Pay or wait for them to expire (about 10 minutes), then try again.",
+      busy: "We're getting a lot of orders right now. Please try again in a few minutes.",
       email: "Enter a valid email address",
       name: "Enter your full name",
       street: "Enter your street or area",
@@ -712,6 +716,7 @@ const en = {
   statusHint: { confirmed: "Payment received", processing: "In our China warehouse", shipped: "On its way to Tanzania", delivered: "Handed to you" } as Record<string, string>,
   status: { pending: "Pending", confirmed: "Confirmed", processing: "Packed", shipped: "In transit", delivered: "Delivered", cancelled: "Cancelled" } as Record<string, string>,
   errors: {
+    tooMany: "Too many requests. Please wait a few minutes and try again.",
     notFoundEyebrow: "Error 404",
     notFoundTitle: "Lost your way?",
     notFoundDesc: "The page you're looking for doesn't exist or has moved. Let's get you back to something good.",
@@ -728,6 +733,7 @@ const en = {
   forms: {
     reviewThanks: "Thanks! Your review is live.",
     reviewDuplicate: "You've already reviewed this product.",
+    reviewNotBuyer: "Only customers who bought this product can review it.",
     reviewError: "We couldn't post your review. Please try again.",
     reviewSignIn: "Please sign in to write a review.",
     ratingRequired: "Choose a star rating",

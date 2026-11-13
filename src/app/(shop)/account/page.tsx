@@ -18,7 +18,7 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
   const [profile, supabase, sp, { t, locale }] = await Promise.all([getProfile(), createClient(), searchParams, getI18n()]);
   const a = t.account;
   const [orders, wishlist] = await Promise.all([
-    supabase.from("orders").select("*, items:order_items(*)", { count: "exact" }).order("created_at", { ascending: false }).limit(3),
+    supabase.from("orders").select("*, items:order_items(*)", { count: "exact" }).neq("payment_status", "failed").order("created_at", { ascending: false }).limit(3),
     supabase.from("wishlist_items").select("id", { count: "exact", head: true }),
   ]);
 

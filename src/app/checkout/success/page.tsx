@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { checkOrderPayment, PENDING_ORDER_COOKIE, type PaymentState } from "@/lib/payments";
 import { ClearBag } from "@/components/checkout/clear-bag";
+import { validOrderToken } from "@/lib/order-link";
 import { AutoRefresh } from "@/components/checkout/auto-refresh";
 import { getI18n } from "@/i18n/server";
 import { fmt, INTL_LOCALE } from "@/i18n/config";
@@ -20,24 +21,32 @@ import { formatPrice } from "@/lib/utils";
 export const metadata: Metadata = { robots: { index: false } };
 
 export default async function SuccessPage({ searchParams }: PageProps<"/checkout/success">) {
-  const { order: orderParam, cancelled } = await searchParams;
+  const { order: orderParam, cancelled, t: tokenParam } = await searchParams;
   const orderNumber = typeof orderParam === "string" ? orderParam.slice(0, 32) : null;
   const [user, { t, locale }] = await Promise.all([getUser(), getI18n()]);
   const s = t.checkout.success;
 
-  // Payment state isn't sensitive, so guests (no RLS access) see it too. Checked first: it can
-  // settle a pending order (asking Snippe directly) before the details below are read.
-  const paymentStatus: PaymentState = orderNumber ? await checkOrderPayment(orderNumber) : "not_found";
-  const cardCancelled = cancelled === "1" && paymentStatus === "pending";
-  // Only the browser that placed this order clears its bag (not anyone opening an old link).
-  const placedHere = (await cookies()).get(PENDING_ORDER_COOKIE)?.value === orderNumber;
-
+  // Only the browser that placed this order (cookie) also clears its bag.
+  const placedHere = Boolean(orderNumber) && (await cookies()).get(PENDING_ORDER_COOKIE)?.value === orderNumber;
   // Signed-in shoppers see the full order (RLS only returns their own orders).
   let order: Order | null = null;
   if (user && orderNumber) {
     const supabase = await createClient();
     const { data } = await supabase.from("orders").select("*, items:order_items(*)").eq("order_number", orderNumber).maybeSingle();
     order = data as Order | null;
+  }
+  // Order numbers are sequential, so status is shown only to the browser that placed the order,
+  // its signed-in owner, or someone with the private link from the order emails.
+  const allowed = Boolean(orderNumber) && (placedHere || Boolean(order) || validOrderToken(orderNumber!, typeof tokenParam === "string" ? tokenParam : null));
+
+  // Checked before the details are used: it can settle a pending order by asking Snippe directly.
+  const paymentStatus: PaymentState = orderNumber && allowed ? await checkOrderPayment(orderNumber) : "not_found";
+  const cardCancelled = cancelled === "1" && paymentStatus === "pending";
+  if (order && paymentStatus !== "pending") {
+    // Re-read: the check above may just have settled it.
+    const supabase = await createClient();
+    const { data } = await supabase.from("orders").select("*, items:order_items(*)").eq("order_number", orderNumber!).maybeSingle();
+    order = (data as Order | null) ?? order;
   }
   const delivery = order ? t.checkout.deliveryMethods[order.delivery_method] : undefined;
   // Guests can't read the order (RLS), but the delivery estimate isn't sensitive.

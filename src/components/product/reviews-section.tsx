@@ -45,7 +45,7 @@ export function ReviewsSection({ reviews, rating, count, productId, slug }: { re
                 </div>
                 <h3 className="mt-3 font-semibold">{r.title}</h3>
                 <p className="mt-2 text-pretty leading-relaxed text-muted">{r.content}</p>
-                <p className="mt-3 flex flex-wrap items-center gap-1.5 text-sm"><span className="font-medium">{r.author_name}</span><span className="flex items-center gap-1 text-success"><BadgeCheck className="h-4 w-4" /> {p.verifiedBuyer}</span></p>
+                <p className="mt-3 flex flex-wrap items-center gap-1.5 text-sm"><span className="font-medium">{r.author_name}</span>{r.verified && <span className="flex items-center gap-1 text-success"><BadgeCheck className="h-4 w-4" /> {p.verifiedBuyer}</span>}</p>
               </li>
             ))}
           </ul>

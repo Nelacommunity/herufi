@@ -37,6 +37,10 @@ export async function POST(request: NextRequest) {
   const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: { user } } = await db.auth.getUser(token);
   if (!user) return NextResponse.json({ error: "Sign in again." }, { status: 401 });
+  // Only active staff (the admin app) may trigger a send.
+  const staff = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: profile } = await staff.from("profiles").select("role, status").eq("user_id", user.id).maybeSingle();
+  if ((profile?.role !== "admin" && profile?.role !== "super_admin") || profile.status !== "active") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const now = Date.now();
   if (now - (recent.get(user.id) ?? 0) < 5000) return NextResponse.json({ sent: 0, skipped: "too soon" });

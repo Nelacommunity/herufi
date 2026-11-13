@@ -5,6 +5,7 @@ import { OrderStatusBadge } from "@/components/account/order-status";
 import { DispatchBatchButton } from "@/components/admin/ship-batch";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
+import { cleanUpFailedOrdersQuickly } from "@/lib/payments";
 import { requirePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { currentBatchDate, formatShipDate, shipCutoff, upcomingBatchDate } from "@/lib/shipping";
@@ -22,8 +23,11 @@ export default async function AdminOrders({ searchParams }: PageProps<"/admin/or
   const q = typeof sp.q === "string" ? sp.q.trim().replace(/[%,()]/g, "").slice(0, 80) : "";
   const batch = typeof sp.batch === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.batch) ? sp.batch : null;
   const page = Math.max(1, Number(sp.page) || 1);
+  await cleanUpFailedOrdersQuickly();
   const supabase = await createClient();
+  // Failed payments are deleted after 10 minutes; hide them until then.
   let query = supabase.from("orders").select("id, order_number, email, total, status, payment_status, created_at, ship_date, shipping_address, items:order_items(quantity)", { count: "exact" })
+    .neq("payment_status", "failed")
     .order("created_at", { ascending: false }).range((page - 1) * PER_PAGE, page * PER_PAGE - 1);
   if (status) query = query.eq("status", status);
   if (batch) query = query.eq("ship_date", batch);
@@ -36,9 +40,9 @@ export default async function AdminOrders({ searchParams }: PageProps<"/admin/or
   const [{ data, count }, ready, late, packed, awaiting] = await Promise.all([
     query,
     n(supabase.from("orders")).eq("status", "processing").lte("ship_date", due),
-    n(supabase.from("orders")).in("status", ["pending", "confirmed"]).lte("ship_date", due),
+    n(supabase.from("orders")).in("status", ["pending", "confirmed"]).eq("payment_status", "paid").lte("ship_date", due),
     n(supabase.from("orders")).eq("status", "processing").eq("ship_date", upcoming),
-    n(supabase.from("orders")).in("status", ["pending", "confirmed"]).eq("ship_date", upcoming),
+    n(supabase.from("orders")).in("status", ["pending", "confirmed"]).eq("payment_status", "paid").eq("ship_date", upcoming),
   ]);
   const day = (d: string) => formatShipDate(d, "en-GB", { weekday: "short", day: "numeric", month: "short" });
   const pages = Math.ceil((count ?? 0) / PER_PAGE);

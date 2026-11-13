@@ -1,10 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createPublicClient } from "@/lib/supabase/public";
 import type { SearchSuggestion } from "@/lib/types";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q")?.trim().slice(0, 80) ?? "";
   if (q.length < 2) return NextResponse.json({ products: [] });
+  if (!(await rateLimit("search", 120, 60))) return NextResponse.json({ products: [], error: "Too many requests" }, { status: 429 });
 
   try {
     const db = createPublicClient(120);

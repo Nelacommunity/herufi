@@ -241,6 +241,7 @@ const sw: Dictionary = {
     reviewsTitle: "Maoni ya wateja",
     reviewsCount: "maoni {n}",
     verifiedBuyer: "Mnunuzi aliyethibitishwa",
+    customer: "Mteja",
     noReviewsTitle: "Bado hakuna maoni",
     noReviewsDesc: "Kuwa wa kwanza kutoa maoni yako.",
     writeReview: "Andika maoni",
@@ -395,6 +396,7 @@ const sw: Dictionary = {
     demoNote: "Malipo yanashughulikiwa kwa usalama na Snippe.",
     payment: {
       alreadySettled: "Oda hii tayari imelipwa au imefungwa.",
+      tooManyAttempts: "Majaribio mengi mno ya malipo kwa oda hii. Tafadhali weka oda upya au wasiliana nasi.",
       waitingTitle: "Thibitisha kwenye simu yako",
       waitingBody: "Tumetuma ombi la malipo kwa {phone}. Weka PIN yako kuidhinisha. Ukurasa huu husasishwa wenyewe.",
       cardNote: "Utapelekwa kwenye ukurasa salama wa Snippe kuweka taarifa za kadi yako. Hatuoni wala kuhifadhi namba ya kadi.",
@@ -429,6 +431,8 @@ const sw: Dictionary = {
     updateBag: "Rekebisha kikapu",
     emptyDesc: "Weka vitu unavyovipenda, kisha urudi kulipa.",
     errors: {
+      tooManyPending: "Una oda ambazo hazijalipwa bado. Lipa au subiri ziishe muda (takriban dakika 10), kisha ujaribu tena.",
+      busy: "Tunapokea oda nyingi sasa hivi. Tafadhali jaribu tena baada ya dakika chache.",
       email: "Weka barua pepe sahihi",
       name: "Weka jina lako kamili",
       street: "Weka mtaa au eneo lako",
@@ -711,6 +715,7 @@ const sw: Dictionary = {
   statusHint: { confirmed: "Malipo yamepokelewa", processing: "Iko ghalani kwetu China", shipped: "Iko njiani kuja Tanzania", delivered: "Umekabidhiwa" },
   status: { pending: "Inasubiri", confirmed: "Imethibitishwa", processing: "Imefungashwa", shipped: "Iko njiani", delivered: "Imefikishwa", cancelled: "Imeghairiwa" },
   errors: {
+    tooMany: "Maombi mengi mno. Tafadhali subiri dakika chache ujaribu tena.",
     notFoundEyebrow: "Hitilafu 404",
     notFoundTitle: "Umepotea njia?",
     notFoundDesc: "Ukurasa unaoutafuta haupo au umehamishwa. Hebu tukurudishe kwenye kitu kizuri.",
@@ -727,6 +732,7 @@ const sw: Dictionary = {
   forms: {
     reviewThanks: "Asante! Maoni yako yamechapishwa.",
     reviewDuplicate: "Tayari umetoa maoni kuhusu bidhaa hii.",
+    reviewNotBuyer: "Ni wateja walionunua bidhaa hii pekee wanaoweza kuitathmini.",
     reviewError: "Hatukuweza kuchapisha maoni yako. Tafadhali jaribu tena.",
     reviewSignIn: "Tafadhali ingia ili uandike maoni.",
     ratingRequired: "Chagua idadi ya nyota",

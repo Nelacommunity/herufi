@@ -6,6 +6,7 @@ import { getShippingRates } from "@/lib/queries/catalog";
 import { formatShipDate, orderArrival } from "@/lib/shipping";
 import { INTL_LOCALE, isLocale } from "@/i18n/config";
 import { SITE_URL } from "@/lib/env";
+import { orderToken } from "@/lib/order-link";
 
 /** Give up on an email after this many failed attempts. */
 const MAX_ATTEMPTS = 5;
@@ -46,7 +47,7 @@ export async function notifyOrder(orderId: string, event: OrderEvent, opts: { fo
     // Guests can't open the account page; the order status page works for them.
     const link = order.user_id
       ? `${SITE_URL}/account/orders/${encodeURIComponent(order.order_number)}`
-      : `${SITE_URL}/checkout/success?order=${encodeURIComponent(order.order_number)}`;
+      : `${SITE_URL}/checkout/success?order=${encodeURIComponent(order.order_number)}&t=${orderToken(order.order_number)}`;
 
     const email = buildOrderEmail(event, locale, order as unknown as EmailOrder, { shipDate, arrival, link });
     const result = await sendEmail({

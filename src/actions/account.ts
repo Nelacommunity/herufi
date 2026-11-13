@@ -8,6 +8,7 @@ import { getUser } from "@/lib/auth";
 import { addressSchema, isTzMobile } from "@/lib/validation";
 import { TZ_REGIONS } from "@/lib/constants";
 import { safeNext } from "@/lib/utils";
+import { rateLimit } from "@/lib/rate-limit";
 import type { ActionResult } from "@/lib/types";
 import { getI18n } from "@/i18n/server";
 
@@ -120,6 +121,7 @@ function formatTzPhone(input: string) {
  */
 export async function completeOnboarding(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const { user, t, locale, supabase } = await authed();
+  if (!(await rateLimit("onboarding", 10, 600))) return { ok: false, error: t.errors.tooMany };
   const parsed = onboardingSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     const fields = new Set(parsed.error.issues.map((i) => String(i.path[0])));

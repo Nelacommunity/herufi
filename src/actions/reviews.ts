@@ -7,6 +7,7 @@ import { getProfile, getUser } from "@/lib/auth";
 import { CATALOG_TAG } from "@/lib/supabase/public";
 import type { ActionResult } from "@/lib/types";
 import { getI18n } from "@/i18n/server";
+import { rateLimit } from "@/lib/rate-limit";
 
 const reviewSchema = z.object({
   productId: z.uuid(),
@@ -19,6 +20,7 @@ export async function submitReview(_: ActionResult | null, formData: FormData): 
   const [user, { t }] = await Promise.all([getUser(), getI18n()]);
   const f = t.forms;
   if (!user) return { ok: false, error: f.reviewSignIn };
+  if (!(await rateLimit("review", 5, 600))) return { ok: false, error: t.errors.tooMany };
   const parsed = reviewSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     const bad = new Set(parsed.error.issues.map((i) => String(i.path[0])));
@@ -31,14 +33,15 @@ export async function submitReview(_: ActionResult | null, formData: FormData): 
 
   const profile = await getProfile();
   const name = profile?.full_name?.trim();
-  const author = name ? `${name.split(/\s+/)[0]} ${name.split(/\s+/).slice(1).map((n) => `${n[0]}.`).join(" ")}`.trim() : t.product.verifiedBuyer;
+  const author = name ? `${name.split(/\s+/)[0]} ${name.split(/\s+/).slice(1).map((n) => `${n[0]}.`).join(" ")}`.trim() : t.product.customer;
 
   const supabase = await createClient();
   const { error } = await supabase.from("reviews").insert({
     product_id: parsed.data.productId, user_id: user.id, author_name: author,
     rating: parsed.data.rating, title: parsed.data.title, content: parsed.data.content,
   });
-  if (error) return { ok: false, error: error.code === "23505" ? f.reviewDuplicate : f.reviewError };
+  // 42501 = row-level security: only customers with a paid order for this product may review it.
+  if (error) return { ok: false, error: error.code === "23505" ? f.reviewDuplicate : error.code === "42501" ? f.reviewNotBuyer : f.reviewError };
   updateTag(CATALOG_TAG);
   return { ok: true, message: f.reviewThanks };
 }
@@ -49,6 +52,7 @@ export async function askQuestion(_: ActionResult | null, formData: FormData): P
   const [user, { t }] = await Promise.all([getUser(), getI18n()]);
   const f = t.forms;
   if (!user) return { ok: false, error: f.questionSignIn };
+  if (!(await rateLimit("question", 5, 600))) return { ok: false, error: t.errors.tooMany };
   const parsed = questionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, error: f.questionShort };
   const profile = await getProfile();

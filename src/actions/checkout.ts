@@ -13,8 +13,10 @@ import { formatPrice } from "@/lib/utils";
 import { SITE_URL } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createSnippePayment, normalizeTzPhone } from "@/lib/snippe";
-import { checkOrderPayment, PENDING_ORDER_COOKIE, releaseUnpaidOrder } from "@/lib/payments";
+import { checkOrderPayment, cleanUpFailedOrders, PENDING_ORDER_COOKIE, releaseUnpaidOrder } from "@/lib/payments";
+import { after } from "next/server";
 import { cookies } from "next/headers";
+import { rateLimit } from "@/lib/rate-limit";
 
 const orderSchema = z.object({
   items: z.array(z.object({ product_id: z.uuid(), variant_id: z.uuid().nullable(), quantity: z.number().int().min(1).max(99) })).min(1, "Your bag is empty").max(50),
@@ -44,6 +46,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<ActionResult<{
     return { ok: false, error: path === "email" ? e.email : path === "address" ? e.address : path === "items" ? e.emptyBag : t.errors.checkFields };
   }
   const { items, email, address, delivery, payment, coupon, saveAddress } = parsed.data;
+  if (!(await rateLimit("order", 8, 600))) return { ok: false, error: t.errors.tooMany };
 
   const supabase = await createClient();
   const user = await getUser();
@@ -83,6 +86,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<ActionResult<{
   try { await createAdminClient().from("orders").update({ locale }).eq("order_number", orderNumber); } catch { /* emails fall back to Kiswahili */ }
   cookieStore.set(PENDING_ORDER_COOKIE, orderNumber, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 2 });
   updateTag(CATALOG_TAG); // stock and sales counts changed
+  after(() => cleanUpFailedOrders()); // tidy up other shoppers' failed checkouts
   return { ok: true, data: { orderNumber } };
 }
 
@@ -102,6 +106,8 @@ function translateOrderError(message: string, t: Awaited<ReturnType<typeof getI1
   if (message.includes("INVALID_EMAIL")) return e.email;
   if (message.includes("INVALID_ADDRESS")) return e.address;
   if (message.includes("SUSPENDED")) return e.suspended;
+  if (message.includes("TOO_MANY_PENDING")) return e.tooManyPending;
+  if (message.includes("BUSY")) return e.busy;
   return e.generic;
 }
 
@@ -122,6 +128,7 @@ export async function startPayment(input: z.infer<typeof payInput>): Promise<Act
   const parsed = payInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: t.errors.checkFields };
   const { orderNumber, email, kind, phone, attemptId } = parsed.data;
+  if (!(await rateLimit("pay", 10, 600))) return { ok: false, error: t.errors.tooMany };
 
   const phoneNumber = normalizeTzPhone(phone);
   if (!phoneNumber) return { ok: false, error: t.checkout.errors.mobile };
@@ -134,13 +141,17 @@ export async function startPayment(input: z.infer<typeof payInput>): Promise<Act
     return { ok: false, error: t.checkout.errors.generic };
   }
   const { data: order } = await db.from("orders")
-    .select("id, total, email, payment_status, shipping_address")
+    .select("id, total, email, payment_status, shipping_address, payment_attempts")
     .eq("order_number", orderNumber).eq("email", email.toLowerCase()).maybeSingle();
   if (!order) {
     console.error("Payments: order not found when starting payment (check SUPABASE_SERVICE_ROLE_KEY)", orderNumber);
     return { ok: false, error: t.checkout.errors.generic };
   }
   if (order.payment_status !== "pending") return { ok: false, error: t.checkout.payment.alreadySettled };
+  // Each attempt sends a prompt to a phone; cap them so an order can't be used to spam prompts.
+  const attempts = Number((order as { payment_attempts?: number }).payment_attempts ?? 0);
+  if (attempts >= 6) return { ok: false, error: t.checkout.payment.tooManyAttempts };
+  await db.from("orders").update({ payment_attempts: attempts + 1 }).eq("id", order.id);
 
   const addr = order.shipping_address as { full_name?: string; line1?: string; city?: string; region?: string; postal_code?: string };
   const [firstname, ...rest] = (addr.full_name ?? "Customer").trim().split(/\s+/);
@@ -180,6 +191,7 @@ export async function startPayment(input: z.infer<typeof payInput>): Promise<Act
 
 /** Status poll used while the customer confirms the mobile-money prompt. */
 export async function getPaymentStatus(orderNumber: string, email: string): Promise<"pending" | "paid" | "failed"> {
+  if (!(await rateLimit("status", 60, 60))) return "pending";
   const state = await checkOrderPayment(orderNumber, email);
   return state === "paid" ? "paid" : state === "failed" ? "failed" : "pending";
 }

@@ -19,7 +19,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/account/o
   const { status } = await searchParams;
   const filter = ORDER_STATUSES.includes(status as OrderStatus) ? (status as OrderStatus) : null;
   const [supabase, { t }] = await Promise.all([createClient(), getI18n()]);
-  let query = supabase.from("orders").select("*, items:order_items(*)").order("created_at", { ascending: false }).limit(50);
+  let query = supabase.from("orders").select("*, items:order_items(*)").neq("payment_status", "failed").order("created_at", { ascending: false }).limit(50);
   if (filter) query = query.eq("status", filter);
   const { data } = await query;
   const orders = (data ?? []) as Order[];

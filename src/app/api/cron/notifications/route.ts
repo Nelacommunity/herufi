@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { retryPendingNotifications } from "@/lib/notifications";
+import { cleanUpFailedOrders } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,6 @@ export async function GET(request: NextRequest) {
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const result = await retryPendingNotifications();
-  return NextResponse.json(result);
+  const [emails, orders] = await Promise.all([retryPendingNotifications(), cleanUpFailedOrders(100)]);
+  return NextResponse.json({ ...emails, failedOrdersDeleted: orders.deleted });
 }

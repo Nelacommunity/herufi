@@ -14,6 +14,7 @@ import { slugify } from "@/lib/utils";
 import { sendPendingPushes } from "@/lib/push";
 import { consistentOptions } from "@/lib/variant-options";
 import { notifyOrder } from "@/lib/notifications";
+import { releaseUnpaidOrder } from "@/lib/payments";
 import { ORDER_EVENTS, type OrderEvent } from "@/lib/order-emails";
 
 /**
@@ -260,7 +261,16 @@ export async function updateOrderStatus(id: string, status: string): Promise<Act
   return guarded(async () => {
     const supabase = await admin("orders.update");
     const update: Record<string, string> = { status };
-    const { data: cur } = await supabase.from("orders").select("status, payment_status").eq("id", id).maybeSingle();
+    const { data: cur } = await supabase.from("orders").select("order_number, status, payment_status").eq("id", id).maybeSingle();
+    // Cancelling an unpaid order: give its stock and coupon back (after checking Snippe it wasn't paid).
+    if (status === "cancelled" && cur?.payment_status === "pending") {
+      const result = await releaseUnpaidOrder(cur.order_number);
+      revalidatePath("/admin/orders", "layout");
+      revalidatePath("/admin");
+      if (result === "paid") return { ok: false, error: "Snippe shows this order as paid, so it was marked paid instead of cancelled." };
+      if (result === "error") return { ok: false, error: "We couldn't cancel this order. Check Admin → Payments." };
+      return { ok: true, message: "Unpaid order cancelled and its stock returned" };
+    }
     if (status === "cancelled") {
       // Only money that was actually received is refunded; an unpaid order is just closed.
       update.payment_status = cur?.payment_status === "paid" ? "refunded" : "failed";

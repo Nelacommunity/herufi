@@ -109,7 +109,8 @@ export interface Review {
   title: string;
   content: string;
   created_at: string;
-  user_id: string | null;
+  /** The reviewer has a paid order containing this product (set by the database). */
+  verified?: boolean;
 }
 
 export interface ProductQuestion {

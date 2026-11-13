@@ -18,11 +18,11 @@ export default async function AdminCustomerDetail({ params }: PageProps<"/admin/
   const supabase = await createClient();
   const [{ data: c }, { data: orders }, me] = await Promise.all([
     supabase.from("profiles").select("*").eq("user_id", id).maybeSingle(),
-    supabase.from("orders").select("id, order_number, total, status, created_at, items:order_items(quantity)").eq("user_id", id).order("created_at", { ascending: false }),
+    supabase.from("orders").select("id, order_number, total, status, payment_status, created_at, items:order_items(quantity)").eq("user_id", id).neq("payment_status", "failed").order("created_at", { ascending: false }),
     getUser(),
   ]);
   if (!c) notFound();
-  const valid = (orders ?? []).filter((o) => o.status !== "cancelled");
+  const valid = (orders ?? []).filter((o) => o.status !== "cancelled" && o.payment_status === "paid");
   const spent = valid.reduce((n, o) => n + Number(o.total), 0);
   const card = "rounded-2xl border border-border bg-surface p-5";
 
