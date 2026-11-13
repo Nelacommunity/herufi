@@ -49,11 +49,15 @@ function refreshCatalog() {
 // Products -------------------------------------------------------------------
 
 const imageSchema = z.object({ id: z.string().optional(), image_url: z.url(), alt_text: z.string().max(200).default("") });
+/** Highest product price staff can enter (TSh). The database allows far more since 0025. */
+const MAX_PRICE = 1_000_000_000;
+const tooHigh = `Prices can be at most TSh ${MAX_PRICE.toLocaleString("en-US")}.`;
+
 const variantSchema = z.object({
   id: z.string().optional(),
   name: z.string().trim().min(1).max(40),
   value: z.string().trim().min(1).max(60),
-  additional_price: z.coerce.number().min(-100000).max(100000),
+  additional_price: z.coerce.number().min(-MAX_PRICE, tooHigh).max(MAX_PRICE, tooHigh),
   stock_quantity: z.coerce.number().int().min(0).max(1000000),
   /** One of the product's images, shown when this variant is chosen. */
   image_url: z.url().nullable().optional(),
@@ -68,8 +72,8 @@ const productSchema = z.object({
   description: z.string().trim().max(10000).default(""),
   details: z.array(z.string().trim().min(1).max(300)).max(20),
   specifications: z.record(z.string(), z.string()),
-  price: z.coerce.number().min(0, "Price must be positive").max(1000000),
-  compare_at_price: z.coerce.number().min(0).max(1000000).nullable(),
+  price: z.coerce.number().min(0, "Price must be positive").max(MAX_PRICE, tooHigh),
+  compare_at_price: z.coerce.number().min(0).max(MAX_PRICE, tooHigh).nullable(),
   sku: z.string().trim().max(64).nullable(),
   stock_quantity: z.coerce.number().int().min(0).max(1000000),
   is_featured: z.boolean(),
@@ -80,7 +84,7 @@ const productSchema = z.object({
   height_cm: z.coerce.number().positive("Height must be greater than 0").max(1000),
   shipping_methods: z.array(z.enum(["standard", "express", "sea"])).min(1, "Allow at least one shipping method"),
   // Group buying (0013): price when `group_size` people buy together. null = no group deal.
-  group_price: z.coerce.number().positive("Group price must be greater than 0").max(1000000).nullable().optional(),
+  group_price: z.coerce.number().positive("Group price must be greater than 0").max(MAX_PRICE, tooHigh).nullable().optional(),
   group_size: z.coerce.number().int().min(2).max(5).optional(),
   images: z.array(imageSchema).max(12),
   variants: z.array(variantSchema).max(50),
